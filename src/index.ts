@@ -139,10 +139,14 @@ export function prepareErrorResponse(errorMessage: string) {
     };
 }
 
-export function initialize(event: { body: any }) {
-    const body = JSON.parse(event.body);
+export function initialize(event: { body?: any }) {
+
+    let body: any = event;
+    if (event.body) {
+        body = event.body;
+    }
+
     ({ authToken, sandboxKey, serviceAddress, actionSubject, userContext, params } = body);
-    // ({ userProxy, orgProxy, user } = userContext);
 }
 
 export interface SortField {
