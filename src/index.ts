@@ -1,7 +1,7 @@
 import * as moment from 'moment';
 import axios from 'axios';
 
-export let authToken: string, sandboxKey: string, serviceAddress: string, actionSubject: string, userContext: string, params: string;
+export let authToken: string, sandboxKey: string, serviceAddress: string, actionSubject: string, userContext: string, params: string, useBody: boolean;
 
 export async function getRelatedObjects(parentElementId: string, parentKey: string, elementId: string, filter: string) {
 
@@ -126,17 +126,25 @@ export function getValueFromObject(object: any, attribute: string) {
 }
 
 export function prepareSuccessResponse(returnVal: any) {
-    return {
-        statusCode: 200, 
-        body: JSON.stringify(returnVal)
-    };
+    if (useBody) {
+        return {
+            statusCode: 200, 
+            body: JSON.stringify(returnVal)
+        };            
+    }
+    
+    return returnVal;
 }
 
 export function prepareErrorResponse(errorMessage: string) {
-    return {
-        statusCode: 400, 
-        body: JSON.stringify({ errorMessage })
-    };
+    if (useBody) {
+        return {
+            statusCode: 400, 
+            body: JSON.stringify({ errorMessage })
+        };        
+    }
+
+    return { errorMessage };
 }
 
 export function initialize(event: { body?: any }) {
@@ -144,6 +152,7 @@ export function initialize(event: { body?: any }) {
     let body: any = event;
     if (event.body) {
         body = event.body;
+        useBody = true;
     }
 
     ({ authToken, sandboxKey, serviceAddress, actionSubject, userContext, params } = body);

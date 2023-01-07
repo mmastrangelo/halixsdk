@@ -1,6 +1,6 @@
 {
   "name": "@halix/action-sdk",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "Halix Platform action SDK",
   "types": "./lib/cjs/types/index.d.ts",
   "main": "./lib/cjs/index.js",
