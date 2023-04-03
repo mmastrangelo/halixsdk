@@ -147,7 +147,7 @@ export function prepareErrorResponse(errorMessage: string) {
         };        
     }
 
-    return { errorMessage };
+    return { errorMessage, responseType: "error" };
 }
 
 export function initialize(event: { body?: any }) {
