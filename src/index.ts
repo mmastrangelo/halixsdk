@@ -35,9 +35,12 @@ export async function getObject(dataElementId: string, key: string) {
     return response.data;
 }
 
-export async function saveRelatedObject(parentElementId: string, parentKey: string, elementId: string, objectToSave: string) {
+export async function saveRelatedObject(parentElementId: string, parentKey: string, elementId: string, objectToSave: string, opts?: SaveOptions) {
 
     let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${parentElementId}/${parentKey}/${elementId}`;
+    if (opts?.bypassValidation) {
+        url += "?bypassValidation=true";
+    }
 
     console.log("Sending POST request to " + url + " with token " + authToken);
 
@@ -163,4 +166,8 @@ export interface SortField {
     descending?: boolean;
     caseInsensitive?: boolean;
     autoSequence?: boolean;
+}
+
+export interface SaveOptions {
+    bypassValidation?: boolean;
 }
