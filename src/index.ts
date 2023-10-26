@@ -3,11 +3,19 @@ import axios from 'axios';
 
 export let authToken: string, sandboxKey: string, serviceAddress: string, actionSubject: string, userContext: string, params: string, useBody: boolean;
 
-export async function getRelatedObjects(parentElementId: string, parentKey: string, elementId: string, filter: string) {
+export async function getRelatedObjects(parentElementId: string, parentKey: string, elementId: string, filter: string, fetchedRelationships?: string[]) {
 
     let params;
-    if (filter) {
-        params = new URLSearchParams({ filter: filter});
+    if (filter || fetchedRelationships) {
+        let p = {};
+        if (filter) {
+            (<any>p).filter = filter;
+        }
+        if (fetchedRelationships) {
+            (<any>p).fetchedRelationships = fetchedRelationships.join(",");
+        }
+
+        params = new URLSearchParams(p);
     }
 
     let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${parentElementId}/${parentKey}/${elementId}`;
@@ -22,7 +30,17 @@ export async function getRelatedObjects(parentElementId: string, parentKey: stri
     return response.data;
 }
 
-export async function getObject(dataElementId: string, key: string) {
+export async function getObject(dataElementId: string, key: string, fetchedRelationships?: string[]) {
+
+    let params;
+    if (fetchedRelationships) {
+        let p = {};
+        if (fetchedRelationships) {
+            (<any>p).fetchedRelationships = fetchedRelationships.join(",");
+        }
+
+        params = new URLSearchParams(p);
+    }
 
     let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${dataElementId}/${key}`;
 
@@ -30,6 +48,7 @@ export async function getObject(dataElementId: string, key: string) {
 
     let response = await axios.get(url, {
         headers: { "Authorization": `Bearer ${authToken}` },
+        params: params,
     });
 
     return response.data;
