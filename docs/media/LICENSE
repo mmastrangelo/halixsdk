@@ -1,0 +1,30 @@
+Copyright (c) 2025 halix.io LLC
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this Software and associated documentation files (the “Software”), to view,
+use, copy, modify, and distribute the Software, subject to the following conditions:
+
+1. **Permitted Use**  
+   The Software may only be used:
+   - Within applications, extensions, or services that are built, hosted, or executed on the Halix platform (“Halix Platform”), and
+   - In accordance with the Halix Platform’s published SDK integration guidelines and technical requirements.
+
+2. **Prohibited Use**  
+   You may not:
+   - Use the Software in any application, system, or environment that is not running on or deployed via the Halix Platform;
+   - Integrate, link, compile, or otherwise incorporate the Software into non-Halix systems;
+   - Use the Software to build tools that replicate or compete with the Halix Platform;
+   - Remove, obscure, or alter any copyright, trademark, or other proprietary notices.
+
+3. **No Warranty**  
+   The Software is provided “as is,” without warranty of any kind, express or implied, including but not limited to warranties of merchantability or fitness for a particular purpose. In no event shall the authors or copyright holders be liable for any claim, damages, or other liability.
+
+4. **Termination**  
+   This license is automatically terminated if you violate any of its terms. Upon termination, you must cease all use of the Software and destroy all copies in your possession.
+
+5. **Commercial Licensing**  
+   For use cases outside the scope of this license (e.g., use in non-Halix systems), please contact [your email or company] to obtain a commercial license.
+
+---
+
+This License is not an open source license and does not grant any rights under any open source definition.

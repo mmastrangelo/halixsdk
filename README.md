@@ -93,7 +93,7 @@ This action pattern is typical for use in Halix’s Lambda-style runtime environ
 | `sortObjectArray(...)` | Utility to sort object arrays |
 | `getValueFromObject(...)` | Access nested or relationship-based attributes |
 
-See full documentation in source comments for parameter details and expected structures.
+See [Full Documentation](./docs) for more information.
 
 ---
 
