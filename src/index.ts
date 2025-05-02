@@ -216,7 +216,10 @@ export function getObjectAsObservable(dataElementId: string, key: string, fetche
 export async function saveRelatedObject(parentElementId: string, parentKey: string, elementId: string, objectToSave: string, opts?: SaveOptions): Promise<any> {
 
     let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${parentElementId}/${parentKey}/${elementId}`;
-    if (opts?.bypassValidation) {
+
+    if (opts?.bypassValidation === false) {
+        url += "?bypassValidation=false";
+    } else {
         url += "?bypassValidation=true";
     }
 
@@ -548,7 +551,7 @@ export interface FormTemplateActionResponse extends BaseActionResponse {
 export interface PageTemplateActionResponse extends BaseActionResponse {
     responseType: "pageTemplateAction";
     successMessage: string;
-    contextVariables?: Record<string, any>;
+    updatedSubject?: Record<string, any>;
     refreshPage?: boolean;
 }
 
