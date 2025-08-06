@@ -16,14 +16,14 @@
  */
 
 import axios from 'axios';
-import { from, Observable } from 'rxjs';
+import { from, Observable, BehaviorSubject, of, lastValueFrom } from 'rxjs';
 
 /**
  * authToken contains the authentication token that the action handler can use to make API requests
  * to Halix web services. This value is set upon calling the initialize function with incoming event
  * data.
  */
-export let authToken: string;
+export let getAuthToken: () => Observable<string>;
 
 /**
  * sandboxKey contains the sandbox key identifier; identifies the sandbox that the action handler is
@@ -50,13 +50,20 @@ export let serviceAddress: string;
  * - for calculatedFieldActions, the action subject is the object containing the calculated field
  * - for singleValueActions, the action subject may differ depending on the caller
  */
-export let actionSubject: string;
+export let actionSubject: any;
 
 /**
  * userContext contains the user context information for the user that is executing the action.
  * This value is set upon calling the initialize function with incoming event data.
  */
-export let userContext: string;
+export let userContext: {
+    user: any;
+    userProxy: any;
+    orgProxy: any;
+    orgProxyKey: string;
+    orgKey: string;
+    userProxyKey: string;
+};
 
 /**
  * params contains the parameters passed to the action. If an input dialog is used, params will
@@ -67,7 +74,7 @@ export let params: string;
 
 /**
  * useBody is a flag indicating how responses should be formatted. If true, the response will be
- * returned an object with the HTTP response code and ActionResponse in the body field. If false,
+ * returned as an object with the HTTP response code and ActionResponse in the body field. If false,
  * the ActionResponse will be returned directly. Typically, this does not need to be set by the
  * action handler and should remain false.
  */
@@ -112,6 +119,8 @@ export async function getRelatedObjects(parentElementId: string, parentKey: stri
     }
 
     let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${parentElementId}/${parentKey}/${elementId}`;
+
+    let authToken = await lastValueFrom(getAuthToken());
 
     console.log("Sending GET request to " + url + " with token " + authToken);
 
@@ -173,6 +182,8 @@ export async function getObject(dataElementId: string, key: string, fetchedRelat
 
     let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${dataElementId}/${key}`;
 
+    let authToken = await lastValueFrom(getAuthToken());
+
     console.log("Sending GET request to " + url + " with token " + authToken);
 
     let response = await axios.get(url, {
@@ -222,6 +233,8 @@ export async function saveRelatedObject(parentElementId: string, parentKey: stri
     } else {
         url += "?bypassValidation=true";
     }
+
+    let authToken = await lastValueFrom(getAuthToken());
 
     console.log("Sending POST request to " + url + " with token " + authToken);
 
@@ -417,8 +430,33 @@ export function initialize(event: { body?: IncomingEventBody }) {
     }
 
     if (body) {
-        ({ authToken, sandboxKey, serviceAddress, actionSubject, userContext, params } = body);
+        ({ sandboxKey, serviceAddress, actionSubject, userContext, params } = body);
+        getAuthToken = () => of(body.authToken);
     }
+}
+
+/**
+ * initializeFromCustomElement initializes the SDK from a custom element context. This should be called
+ * at the beginning of the action handler to set up the SDK with incoming information, including context
+ * information, input parameters, and authentication information needed to make API requests to the Halix service.
+ * 
+ * @param context - The custom element context
+ */
+export function initializeFromCustomElement(context: CustomElementContext) {
+
+    sandboxKey = context.session?.sandbox?.objKey;
+    serviceAddress = context.serviceAddress;
+    actionSubject = context.pageContext;
+    userContext = {
+        user: context.session?.user,
+        userProxy: context.session?.userProxy,
+        orgProxy: context.session?.organizationProxy,
+        orgProxyKey: context.session?.organizationProxyKey,
+        orgKey: context.session?.organizationKey,
+        userProxyKey: context.session?.userProxy?.objKey,
+    }
+
+    getAuthToken = () => context.authTokenRetriever();
 }
 
 /**
@@ -605,4 +643,57 @@ export interface IncomingEventBody {
     actionSubject: string;
     userContext: string;
     params: Record<string, any>;
+}
+
+/**
+ * CustomElementContext is an interface defining the properties of the custom element context, which represents
+ * the state of the application front-end. A CustomElementContext is provided as property bound to Lit elements
+ * that back custom page elements.
+ */
+export interface CustomElementContext {
+    pageContext: { [key: string]: any };
+    pageContext$: Observable<{ [key: string]: any }>;
+    groupObject: {
+        groupObject: any;
+        parent?: any;
+        groupChange: BehaviorSubject<number>;
+    };
+    session: {
+        solution: {
+            objKey: string;
+            name: string;
+            description: string;
+            sandboxKeys: string[];
+        },
+        sandbox: {
+            objKey: string;
+            id: string;
+            solutionKey: string;
+            organizationKey: string;
+        },
+        user: {
+            objKey: string;
+            username: string;
+            firstName: string;
+            lastName: string;
+            email: string;
+            photoKey: string;
+            thumbnail: string;
+            getFormattedName(): string;
+        },
+        currentComponent: {
+            id: string;
+            name: string;
+            componentConfig: any;
+        }
+        organizationKey: string;
+        organizationProxyKey: string;
+        organizationProxy: any;
+        userProxy: any;
+        secondaryScopeKey: string;
+        secondaryScopeLabel: string;
+        isLoggedIn(): boolean;
+    };
+    serviceAddress: string;
+    authTokenRetriever: () => Observable<string>;
 }
