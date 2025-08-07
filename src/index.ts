@@ -56,14 +56,7 @@ export let actionSubject: any;
  * userContext contains the user context information for the user that is executing the action.
  * This value is set upon calling the initialize function with incoming event data.
  */
-export let userContext: {
-    user: any;
-    userProxy: any;
-    orgProxy: any;
-    orgProxyKey: string;
-    orgKey: string;
-    userProxyKey: string;
-};
+export let userContext: UserContext;
 
 /**
  * params contains the parameters passed to the action. If an input dialog is used, params will
@@ -431,32 +424,13 @@ export function initialize(event: { body?: IncomingEventBody }) {
 
     if (body) {
         ({ sandboxKey, serviceAddress, actionSubject, userContext, params } = body);
-        getAuthToken = () => of(body.authToken);
+
+        if (body.authToken) {
+            getAuthToken = () => of(body.authToken);
+        } else if (body.authTokenRetriever) {
+            getAuthToken = body.authTokenRetriever;
+        }
     }
-}
-
-/**
- * initializeFromCustomElement initializes the SDK from a custom element context. This should be called
- * at the beginning of the action handler to set up the SDK with incoming information, including context
- * information, input parameters, and authentication information needed to make API requests to the Halix service.
- * 
- * @param context - The custom element context
- */
-export function initializeFromCustomElement(context: CustomElementContext) {
-
-    sandboxKey = context.session?.sandbox?.objKey;
-    serviceAddress = context.serviceAddress;
-    actionSubject = context.pageContext;
-    userContext = {
-        user: context.session?.user,
-        userProxy: context.session?.userProxy,
-        orgProxy: context.session?.organizationProxy,
-        orgProxyKey: context.session?.organizationProxyKey,
-        orgKey: context.session?.organizationKey,
-        userProxyKey: context.session?.userProxy?.objKey,
-    }
-
-    getAuthToken = () => context.authTokenRetriever();
 }
 
 /**
@@ -637,63 +611,23 @@ export interface ErrorResponse {
  * platform provides these properties when an action is triggered.
  */
 export interface IncomingEventBody {
-    authToken: string;
+    authToken?: string;
+    authTokenRetriever?: () => Observable<string>;
     sandboxKey: string;
     serviceAddress: string;
-    actionSubject: string;
-    userContext: string;
+    actionSubject: any;
+    userContext: UserContext;
     params: Record<string, any>;
 }
 
 /**
- * CustomElementContext is an interface defining the properties of the custom element context, which represents
- * the state of the application front-end. A CustomElementContext is provided as property bound to Lit elements
- * that back custom page elements.
+ * UserContext is an interface defining the properties of the user context.
  */
-export interface CustomElementContext {
-    pageContext: { [key: string]: any };
-    pageContext$: Observable<{ [key: string]: any }>;
-    groupObject: {
-        groupObject: any;
-        parent?: any;
-        groupChange: BehaviorSubject<number>;
-    };
-    session: {
-        solution: {
-            objKey: string;
-            name: string;
-            description: string;
-            sandboxKeys: string[];
-        },
-        sandbox: {
-            objKey: string;
-            id: string;
-            solutionKey: string;
-            organizationKey: string;
-        },
-        user: {
-            objKey: string;
-            username: string;
-            firstName: string;
-            lastName: string;
-            email: string;
-            photoKey: string;
-            thumbnail: string;
-            getFormattedName(): string;
-        },
-        currentComponent: {
-            id: string;
-            name: string;
-            componentConfig: any;
-        }
-        organizationKey: string;
-        organizationProxyKey: string;
-        organizationProxy: any;
-        userProxy: any;
-        secondaryScopeKey: string;
-        secondaryScopeLabel: string;
-        isLoggedIn(): boolean;
-    };
-    serviceAddress: string;
-    authTokenRetriever: () => Observable<string>;
+export interface UserContext {
+    user: any;
+    userProxy: any;
+    orgProxy: any;
+    orgProxyKey: string;
+    orgKey: string;
+    userProxyKey: string;
 }
