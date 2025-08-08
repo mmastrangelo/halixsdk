@@ -18,6 +18,10 @@
 import axios from 'axios';
 import { from, Observable, of, lastValueFrom } from 'rxjs';
 
+// ================================================================================
+// GLOBAL VARIABLES AND INITIALIZATION
+// ================================================================================
+
 /**
  * authToken contains the authentication token that the action handler can use to make API requests
  * to Halix web services. This value is set upon calling the initialize function with incoming event
@@ -74,340 +78,6 @@ export let params: string;
 export let useBody: boolean;
 
 /**
- * getRelatedObjects retrieves an array of objects from the the database. The objects returned are
- * related to a parent through a defined relationship in the schema. In a typical setup, action's
- * auth token must have scope access to the parent object in order to access all of its related
- * objects.
- * 
- * It is common to use getRelatedObjects to retrieve all objects belonging to the current user proxy
- * or organization proxy. For example, in a user context where the current user proxy element is
- * "customer," an action might want to retrieve all "purchase" objects related to the current
- * customer. Similarly, in an organization context where the current organization proxy is
- * "business," an action might want to retrieve all "employee" objects related to the current
- * business.
- * 
- * @param parentElementId - The ID of the parent element
- * @param parentKey - The key of the parent object
- * @param elementId - The ID of the element
- * @param filter - Optional filter criteria for the query; if not provided, all related objects will
- * be returned
- * @param fetchedRelationships - Optional array of relationships to fetch; if provided, the returned
- * objects will include the specified related objects as nested objects
- * 
- * @returns Promise resolving to an array of objects
- */
-export async function getRelatedObjects(parentElementId: string, parentKey: string, elementId: string, filter?: string, fetchedRelationships?: string[]): Promise<any[]> {
-
-    let params;
-    if (filter || fetchedRelationships) {
-        let p = {};
-        if (filter) {
-            (<any>p).filter = filter;
-        }
-        if (fetchedRelationships) {
-            (<any>p).fetchedRelationships = fetchedRelationships.join(",");
-        }
-
-        params = new URLSearchParams(p);
-    }
-
-    let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${parentElementId}/${parentKey}/${elementId}`;
-
-    let authToken = await lastValueFrom(getAuthToken());
-
-    console.log("Sending GET request to " + url + " with token " + authToken);
-
-    let response = await axios.get(url, {
-        headers: { "Authorization": `Bearer ${authToken}` },
-        params: params,
-    });
-
-    return response.data;
-}
-
-/**
- * getRelatedObjectsAsObservable retrieves an array of objects from the the database. The objects
- * returned are related to a parent through a defined relationship in the schema. In a typical
- * setup, action's auth token must have scope access to the parent object in order to access all of
- * its related objects.
- * 
- * It is common to use getRelatedObjects to retrieve all objects belonging to the current user proxy
- * or organization proxy. For example, in a user context where the current user proxy element is
- * "customer," an action might want to retrieve all "purchase" objects related to the current
- * customer. Similarly, in an organization context where the current organization proxy is
- * "business," an action might want to retrieve all "employee" objects related to the current
- * business.
- * 
- * @param parentElementId - The ID of the parent element
- * @param parentKey - The key of the parent element
- * @param elementId - The ID of the element
- * @param filter - Optional filter criteria for the query; if not provided, all related objects will
- * be returned
- * @param fetchedRelationships - Optional array of relationships to fetch; if provided, the returned
- * objects will include the specified related objects as nested objects
- * 
- * @returns Observable resolving to an array of objects
- */
-export function getRelatedObjectsAsObservable(parentElementId: string, parentKey: string, elementId: string, filter?: string, fetchedRelationships?: string[]): Observable<any[]> {
-    return from(getRelatedObjects(parentElementId, parentKey, elementId, filter, fetchedRelationships));
-}
-
-/**
- * getObject retrieves a single object from the database by its data element ID and key.
- * 
- * @param dataElementId - The ID of the data element
- * @param key - The key of the object
- * @param fetchedRelationships - Optional array of relationships to fetch; if provided, the returned
- * object will include the specified related objects as nested objects
- * @returns Promise resolving to the object data
- */
-export async function getObject(dataElementId: string, key: string, fetchedRelationships?: string[]) {
-
-    let params;
-    if (fetchedRelationships) {
-        let p = {};
-        if (fetchedRelationships) {
-            (<any>p).fetchedRelationships = fetchedRelationships.join(",");
-        }
-
-        params = new URLSearchParams(p);
-    }
-
-    let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${dataElementId}/${key}`;
-
-    let authToken = await lastValueFrom(getAuthToken());
-
-    console.log("Sending GET request to " + url + " with token " + authToken);
-
-    let response = await axios.get(url, {
-        headers: { "Authorization": `Bearer ${authToken}` },
-        params: params,
-    });
-
-    return response.data;
-}
-
-/**
- * getObjectAsObservable retrieves a single object from the database by its data element ID and key.
- * 
- * @param dataElementId - The ID of the data element
- * @param key - The key of the object
- * @param fetchedRelationships - Optional array of relationships to fetch; if provided, the returned
- * object will include the specified related objects as nested objects
- * 
- * @returns Observable resolving to the object data
- */
-export function getObjectAsObservable(dataElementId: string, key: string, fetchedRelationships?: string[]): Observable<any> {
-    return from(getObject(dataElementId, key, fetchedRelationships));
-}
-
-/**
- * saveRelatedObject saves a related object to the database. The objectToSave is saved, and its
- * relationship to the parent object is established based on the relationship specified in the
- * schema. The objectToSave must have a relationship to the parent object and the user must have
- * scope access to the parent object.
- * 
- * @param parentElementId - The ID of the parent element
- * @param parentKey - The key of the parent object
- * @param elementId - The element ID of the object to save
- * @param objectToSave - The object data to save (as a JSON string)
- * @param opts - Optional save options
- * 
- * @returns Promise resolving to saved object, including any updates made to the object during the
- * save operation (such as assigning an objKey if the object is new), or the assignment of
- * calculated values
- */
-export async function saveRelatedObject(parentElementId: string, parentKey: string, elementId: string, objectToSave: string, opts?: SaveOptions): Promise<any> {
-
-    let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${parentElementId}/${parentKey}/${elementId}`;
-
-    if (opts?.bypassValidation === false) {
-        url += "?bypassValidation=false";
-    } else {
-        url += "?bypassValidation=true";
-    }
-
-    let authToken = await lastValueFrom(getAuthToken());
-
-    console.log("Sending POST request to " + url + " with token " + authToken);
-
-    let response = await axios.post(url, objectToSave, {
-        headers: { "Authorization": `Bearer ${authToken}` },
-    });
-
-    return response.data;
-}
-
-/** 
- * saveRelatedObjectAsObservable saves a related object to the database. The objectToSave is saved,
- * and its relationship to the parent object is established based on the relationship specified in
- * the schema. The objectToSave must have a relationship to the parent object and the user must have
- * scope access to the parent object.
- * 
- * @param parentElementId - The ID of the parent element
- * @param parentKey - The key of the parent object
- * @param elementId - The element ID of the object to save
- * @param objectToSave - The object data to save (as a JSON string)
- * @param opts - Optional save options
- * 
- * @returns Observable resolving to saved object, including any updates made to the object during
- * the save operation (such as assigning an objKey if the object is new), or the assignment of
- * calculated values
- */
-export function saveRelatedObjectAsObservable(parentElementId: string, parentKey: string, elementId: string, objectToSave: string, opts?: SaveOptions): Observable<any> {
-    return from(saveRelatedObject(parentElementId, parentKey, elementId, objectToSave, opts));
-}
-
-/**
- * sortObjectArray is a helper function that sorts the passed array in place by the given
- * attributes. Sorting by nested attributes in the form of a delimited attribute string are
- * supported (e.g., "attribute.nestedAttribute").
- * 
- * @param array - The array to sort
- * @param sort - Array of sort field specifications
- * @returns The sorted array
- */
-export function sortObjectArray<T>(array: Array<T>, sort: SortField[]): Array<T> {
-
-    return array.sort((a: T, b: T) => {
-
-        let comparison = 0;
-        for (let s of sort) {
-            let valueA = getValueFromObject(a, s.attributeId);
-            let valueB = getValueFromObject(b, s.attributeId);
-
-            comparison = compareValues(valueA, valueB, !!s.descending, !!s.caseInsensitive);
-            if (comparison !== 0) {
-                break;
-            }
-        }
-
-        return comparison;
-    });
-}
-
-/**
- * compareValues is a helper function that compares two values for sorting purposes. If the values
- * are strings, the comparison is case-insensitive. If the values are numbers, the comparison is
- * performed numerically. 
- * 
- * @param valueA - First value to compare
- * @param valueB - Second value to compare
- * @param descending - Whether to sort in descending order
- * @param caseInsensitive - Whether to perform case-insensitive comparison for strings
- * 
- * @returns Comparison result (-1, 0, or 1)
- */
-export function compareValues(valueA: any, valueB: any, descending: boolean, caseInsensitive: boolean): number {
-
-    if (caseInsensitive && (typeof valueA === 'string' || valueA instanceof String)) {
-
-        if (valueA && valueB) {
-            let comp = (<string>valueA).toLowerCase().localeCompare((<string>valueB).toLowerCase());
-            if (descending) {
-                comp = comp * -1;
-            }
-            return comp;
-        } else if (valueA && !valueB) {
-            return -1;
-        } else if (!valueA && valueB) {
-            return 1;                
-        } else {
-            return 0;
-        }
-    } else {
-
-        if (valueA < valueB) {
-            return (descending ? 1 : -1);
-        }
-        if (valueA > valueB) {
-            return (descending ? -1 : 1);
-        }
-    }
-    return 0;    
-}
-
-/**
- * getValueFromObject is a helper function that extracts a value from an object using a dot-notation
- * path. The path can include relationships. Relationship IDs may include a colon delimiter (e.g.,
- * "accountMember:ownerAccountMemberKey") to specify the key of the related object. This is useful
- * when an element has more than one relationship to the same object type. Otherwise, if only one
- * relationship to the same object type exists, the key may be specified without the relationship ID
- * (e.g., simply, "accountMember").
- * 
- * @param object - The object to extract value from
- * @param attribute - The attribute path (e.g., "user.address.city")
- * 
- * @returns The extracted value
- */
-export function getValueFromObject(object: any, attribute: string): any {
-
-    let components = attribute.split(".");
-
-    let value = object;
-    for (let component of components) {
-
-        if (value) {
-            // If a relationship specifies a key, it will be in the format [datatype]:[key]. Otherwise the colon
-            // delimiter will not be present.
-            // The related value will be in a field named after the key. For example: accountMember:ownerAccountMemberKey
-            // the related owner account member will be in a field called "ownerAccountMember".
-            let compSplit = component.split(":");
-            if (compSplit.length > 1) {
-                let keyField = compSplit[1];
-                value = value[keyField.replace("Key", "")];
-            } else {
-                value = value[component];
-            }
-        }
-    }
-
-    return value;
-}
-
-/**
- * prepareSuccessResponse prepares a success response in the appropriate format. The action handler
- * should return an ActionResponse response when the action is successful. If useBody is true, the
- * response will be returned as an object with the HTTP response code and the ActionResponse in the
- * body field. If useBody is false, the ActionResponse will be returned directly.
- * 
- * @param successResponse - The value to return
- * 
- * @returns Formatted success response; an ActionResponse unless useBody is true
- */
-export function prepareSuccessResponse(successResponse: ActionResponse): { statusCode: number; body: string } | ActionResponse {
-    if (useBody) {
-        return {
-            statusCode: 200, 
-            body: JSON.stringify(successResponse)
-        };            
-    }
-    
-    return successResponse;
-}
-
-/**
- * prepareErrorResponse prepares an error response in the appropriate format. The action handler
- * should return an ErrorResponse response when the action is not successful. If useBody is true,
- * the response will be returned as an object with the HTTP response code and the ErrorResponse in
- * the body field. If useBody is false, the ErrorResponse will be returned directly.
- * 
- * @param errorMessage - The error message
- * 
- * @returns Formatted error response; an ErrorResponse unless useBody is true
- */
-export function prepareErrorResponse(errorMessage: string): { statusCode: number; body: string } | ErrorResponse {
-    if (useBody) {
-        return {
-            statusCode: 400, 
-            body: JSON.stringify({ errorMessage })
-        };        
-    }
-
-    return { errorMessage, responseType: "error" };
-}
-
-/**
  * initialize initializes the SDK with event data. This should be called at the beginning of the
  * action handler to set up the SDK with incoming information, including context information, input
  * parameters, and authentication information needed to make API requests to the Halix service.
@@ -433,6 +103,10 @@ export function initialize(event: { body?: IncomingEventBody }) {
     }
 }
 
+// ================================================================================
+// INTERFACES AND TYPES
+// ================================================================================
+
 /**
  * SortField is an interface for specifying sort fields.
  */
@@ -453,6 +127,52 @@ export interface SortField {
 export interface SaveOptions {
     /** Whether to bypass validation */
     bypassValidation?: boolean;
+}
+
+/**
+ * UserContext is an interface defining the properties of the user context.
+ */
+export interface UserContext {
+    user: any;
+    userProxy: any;
+    orgProxy: any;
+    orgProxyKey: string;
+    orgKey: string;
+    userProxyKey: string;
+}
+
+/**
+ * ContentResource is an interface defining the properties of a content resource.
+ */
+export interface ContentResource {
+    objKey?: string;
+    isPublic: boolean;
+    resourceType: string;
+    tags: string[];
+    organizationKey: string;
+    sandboxKey: string;
+    userKey: string;
+    fileName?: string;
+    fileSize?: number;
+    mimeType?: string;
+    contentType?: string;
+    name?: string | null;
+    extension?: string | null;
+    deserialize?: (data: any) => ContentResource;
+}
+
+/**
+ * IncomingEventBody is an interface defining the properties of an incoming event body. The halix
+ * platform provides these properties when an action is triggered.
+ */
+export interface IncomingEventBody {
+    authToken?: string;
+    authTokenRetriever?: () => Observable<string>;
+    sandboxKey: string;
+    serviceAddress: string;
+    actionSubject: any;
+    userContext: UserContext;
+    params: Record<string, any>;
 }
 
 /**
@@ -606,51 +326,337 @@ export interface ErrorResponse {
     errorMessage: string;
 }
 
+// ================================================================================
+// RESPONSE HELPER FUNCTIONS
+// ================================================================================
+
 /**
- * IncomingEventBody is an interface defining the properties of an incoming event body. The halix
- * platform provides these properties when an action is triggered.
+ * prepareSuccessResponse prepares a success response in the appropriate format. The action handler
+ * should return an ActionResponse response when the action is successful. If useBody is true, the
+ * response will be returned as an object with the HTTP response code and the ActionResponse in the
+ * body field. If useBody is false, the ActionResponse will be returned directly.
+ * 
+ * @param successResponse - The value to return
+ * 
+ * @returns Formatted success response; an ActionResponse unless useBody is true
  */
-export interface IncomingEventBody {
-    authToken?: string;
-    authTokenRetriever?: () => Observable<string>;
-    sandboxKey: string;
-    serviceAddress: string;
-    actionSubject: any;
-    userContext: UserContext;
-    params: Record<string, any>;
+export function prepareSuccessResponse(successResponse: ActionResponse): { statusCode: number; body: string } | ActionResponse {
+    if (useBody) {
+        return {
+            statusCode: 200, 
+            body: JSON.stringify(successResponse)
+        };            
+    }
+    
+    return successResponse;
 }
 
 /**
- * UserContext is an interface defining the properties of the user context.
+ * prepareErrorResponse prepares an error response in the appropriate format. The action handler
+ * should return an ErrorResponse response when the action is not successful. If useBody is true,
+ * the response will be returned as an object with the HTTP response code and the ErrorResponse in
+ * the body field. If useBody is false, the ErrorResponse will be returned directly.
+ * 
+ * @param errorMessage - The error message
+ * 
+ * @returns Formatted error response; an ErrorResponse unless useBody is true
  */
-export interface UserContext {
-    user: any;
-    userProxy: any;
-    orgProxy: any;
-    orgProxyKey: string;
-    orgKey: string;
-    userProxyKey: string;
+export function prepareErrorResponse(errorMessage: string): { statusCode: number; body: string } | ErrorResponse {
+    if (useBody) {
+        return {
+            statusCode: 400, 
+            body: JSON.stringify({ errorMessage })
+        };        
+    }
+
+    return { errorMessage, responseType: "error" };
+}
+
+// ================================================================================
+// DATA RETRIEVAL FUNCTIONS
+// ================================================================================
+
+/**
+ * getObject retrieves a single object from the database by its data element ID and key.
+ * 
+ * @param dataElementId - The ID of the data element
+ * @param key - The key of the object
+ * @param fetchedRelationships - Optional array of relationships to fetch; if provided, the returned
+ * object will include the specified related objects as nested objects
+ * @returns Promise resolving to the object data
+ */
+export async function getObject(dataElementId: string, key: string, fetchedRelationships?: string[]) {
+
+    let params;
+    if (fetchedRelationships) {
+        let p = {};
+        if (fetchedRelationships) {
+            (<any>p).fetchedRelationships = fetchedRelationships.join(",");
+        }
+
+        params = new URLSearchParams(p);
+    }
+
+    let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${dataElementId}/${key}`;
+
+    let authToken = await lastValueFrom(getAuthToken());
+
+    console.log("Sending GET request to " + url + " with token " + authToken);
+
+    let response = await axios.get(url, {
+        headers: { "Authorization": `Bearer ${authToken}` },
+        params: params,
+    });
+
+    return response.data;
 }
 
 /**
- * ContentResource is an interface defining the properties of a content resource.
+ * getObjectAsObservable retrieves a single object from the database by its data element ID and key.
+ * 
+ * @param dataElementId - The ID of the data element
+ * @param key - The key of the object
+ * @param fetchedRelationships - Optional array of relationships to fetch; if provided, the returned
+ * object will include the specified related objects as nested objects
+ * 
+ * @returns Observable resolving to the object data
  */
-export interface ContentResource {
-    objKey?: string;
-    isPublic: boolean;
-    resourceType: string;
-    tags: string[];
-    organizationKey: string;
-    sandboxKey: string;
-    userKey: string;
-    fileName?: string;
-    fileSize?: number;
-    mimeType?: string;
-    contentType?: string;
-    name?: string | null;
-    extension?: string | null;
-    deserialize?: (data: any) => ContentResource;
+export function getObjectAsObservable(dataElementId: string, key: string, fetchedRelationships?: string[]): Observable<any> {
+    return from(getObject(dataElementId, key, fetchedRelationships));
 }
+
+/**
+ * getRelatedObjects retrieves an array of objects from the the database. The objects returned are
+ * related to a parent through a defined relationship in the schema. In a typical setup, action's
+ * auth token must have scope access to the parent object in order to access all of its related
+ * objects.
+ * 
+ * It is common to use getRelatedObjects to retrieve all objects belonging to the current user proxy
+ * or organization proxy. For example, in a user context where the current user proxy element is
+ * "customer," an action might want to retrieve all "purchase" objects related to the current
+ * customer. Similarly, in an organization context where the current organization proxy is
+ * "business," an action might want to retrieve all "employee" objects related to the current
+ * business.
+ * 
+ * @param parentElementId - The ID of the parent element
+ * @param parentKey - The key of the parent object
+ * @param elementId - The ID of the element
+ * @param filter - Optional filter criteria for the query; if not provided, all related objects will
+ * be returned
+ * @param fetchedRelationships - Optional array of relationships to fetch; if provided, the returned
+ * objects will include the specified related objects as nested objects
+ * 
+ * @returns Promise resolving to an array of objects
+ */
+export async function getRelatedObjects(parentElementId: string, parentKey: string, elementId: string, filter?: string, fetchedRelationships?: string[]): Promise<any[]> {
+
+    let params;
+    if (filter || fetchedRelationships) {
+        let p = {};
+        if (filter) {
+            (<any>p).filter = filter;
+        }
+        if (fetchedRelationships) {
+            (<any>p).fetchedRelationships = fetchedRelationships.join(",");
+        }
+
+        params = new URLSearchParams(p);
+    }
+
+    let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${parentElementId}/${parentKey}/${elementId}`;
+
+    let authToken = await lastValueFrom(getAuthToken());
+
+    console.log("Sending GET request to " + url + " with token " + authToken);
+
+    let response = await axios.get(url, {
+        headers: { "Authorization": `Bearer ${authToken}` },
+        params: params,
+    });
+
+    return response.data;
+}
+
+/**
+ * getRelatedObjectsAsObservable retrieves an array of objects from the the database. The objects
+ * returned are related to a parent through a defined relationship in the schema. In a typical
+ * setup, action's auth token must have scope access to the parent object in order to access all of
+ * its related objects.
+ * 
+ * It is common to use getRelatedObjects to retrieve all objects belonging to the current user proxy
+ * or organization proxy. For example, in a user context where the current user proxy element is
+ * "customer," an action might want to retrieve all "purchase" objects related to the current
+ * customer. Similarly, in an organization context where the current organization proxy is
+ * "business," an action might want to retrieve all "employee" objects related to the current
+ * business.
+ * 
+ * @param parentElementId - The ID of the parent element
+ * @param parentKey - The key of the parent element
+ * @param elementId - The ID of the element
+ * @param filter - Optional filter criteria for the query; if not provided, all related objects will
+ * be returned
+ * @param fetchedRelationships - Optional array of relationships to fetch; if provided, the returned
+ * objects will include the specified related objects as nested objects
+ * 
+ * @returns Observable resolving to an array of objects
+ */
+export function getRelatedObjectsAsObservable(parentElementId: string, parentKey: string, elementId: string, filter?: string, fetchedRelationships?: string[]): Observable<any[]> {
+    return from(getRelatedObjects(parentElementId, parentKey, elementId, filter, fetchedRelationships));
+}
+
+// ================================================================================
+// DATA SAVE FUNCTIONS
+// ================================================================================
+
+/**
+ * saveRelatedObject saves a related object to the database. The objectToSave is saved, and its
+ * relationship to the parent object is established based on the relationship specified in the
+ * schema. The objectToSave must have a relationship to the parent object and the user must have
+ * scope access to the parent object.
+ * 
+ * @param parentElementId - The ID of the parent element
+ * @param parentKey - The key of the parent object
+ * @param elementId - The element ID of the object to save
+ * @param objectToSave - The object data to save (as a JSON string)
+ * @param opts - Optional save options
+ * 
+ * @returns Promise resolving to saved object, including any updates made to the object during the
+ * save operation (such as assigning an objKey if the object is new), or the assignment of
+ * calculated values
+ */
+export async function saveRelatedObject(parentElementId: string, parentKey: string, elementId: string, objectToSave: string, opts?: SaveOptions): Promise<any> {
+
+    let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${parentElementId}/${parentKey}/${elementId}`;
+
+    if (opts?.bypassValidation === false) {
+        url += "?bypassValidation=false";
+    } else {
+        url += "?bypassValidation=true";
+    }
+
+    let authToken = await lastValueFrom(getAuthToken());
+
+    console.log("Sending POST request to " + url + " with token " + authToken);
+
+    let response = await axios.post(url, objectToSave, {
+        headers: { "Authorization": `Bearer ${authToken}` },
+    });
+
+    return response.data;
+}
+
+/** 
+ * saveRelatedObjectAsObservable saves a related object to the database. The objectToSave is saved,
+ * and its relationship to the parent object is established based on the relationship specified in
+ * the schema. The objectToSave must have a relationship to the parent object and the user must have
+ * scope access to the parent object.
+ * 
+ * @param parentElementId - The ID of the parent element
+ * @param parentKey - The key of the parent object
+ * @param elementId - The element ID of the object to save
+ * @param objectToSave - The object data to save (as a JSON string)
+ * @param opts - Optional save options
+ * 
+ * @returns Observable resolving to saved object, including any updates made to the object during
+ * the save operation (such as assigning an objKey if the object is new), or the assignment of
+ * calculated values
+ */
+export function saveRelatedObjectAsObservable(parentElementId: string, parentKey: string, elementId: string, objectToSave: string, opts?: SaveOptions): Observable<any> {
+    return from(saveRelatedObject(parentElementId, parentKey, elementId, objectToSave, opts));
+}
+
+// ================================================================================
+// DATA DELETE FUNCTIONS
+// ================================================================================
+
+/**
+ * deleteRelatedObject deletes a single object related to a specific parent.
+ * 
+ * @param parentElementId - The ID of the parent element
+ * @param parentKey - The key of the parent object
+ * @param childElementId - The ID of the child element to delete
+ * @param childKey - The key of the child object to delete
+ * 
+ * @returns Promise resolving to true if deletion was successful
+ */
+export async function deleteRelatedObject(parentElementId: string, parentKey: string, childElementId: string, childKey: string): Promise<boolean> {
+
+    if (!userContext) {
+        throw new Error("userContext is required but not available; check that the initialize function has been called");
+    }
+
+    let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${parentElementId}/${parentKey}/${childElementId}/${childKey}`;
+    let authToken = await lastValueFrom(getAuthToken());
+
+    console.log("Sending DELETE request to " + url + " with token " + authToken);
+
+    let response = await axios.delete(url, {
+        headers: { "Authorization": `Bearer ${authToken}` },
+    });
+
+    return response.status === 204;
+}
+
+/**
+ * deleteRelatedObjectAsObservable deletes a single object related to a specific parent.
+ * 
+ * @param parentElementId - The ID of the parent element
+ * @param parentKey - The key of the parent object
+ * @param childElementId - The ID of the child element to delete
+ * @param childKey - The key of the child object to delete
+ * 
+ * @returns Observable resolving to true if deletion was successful
+ */
+export function deleteRelatedObjectAsObservable(parentElementId: string, parentKey: string, childElementId: string, childKey: string): Observable<boolean> {
+    return from(deleteRelatedObject(parentElementId, parentKey, childElementId, childKey));
+}
+
+/**
+ * deleteRelatedObjects deletes multiple objects related to a specific parent.
+ * 
+ * @param parentElementId - The ID of the parent element
+ * @param parentKey - The key of the parent object
+ * @param childElementId - The ID of the child element to delete
+ * @param childKeys - Array of keys of the child objects to delete
+ * 
+ * @returns Promise resolving to true if deletion was successful
+ */
+export async function deleteRelatedObjects(parentElementId: string, parentKey: string, childElementId: string, childKeys: string[]): Promise<boolean> {
+
+    if (!userContext) {
+        throw new Error("userContext is required but not available; check that the initialize function has been called");
+    }
+
+    let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${parentElementId}/${parentKey}/${childElementId}`;
+    let authToken = await lastValueFrom(getAuthToken());
+
+    console.log("Sending DELETE request to " + url + " with token " + authToken);
+
+    let response = await axios.delete(url, {
+        headers: { "Authorization": `Bearer ${authToken}` },
+        params: { keys: childKeys.join(",") },
+    });
+
+    return response.status === 204;
+}
+
+/**
+ * deleteRelatedObjectsAsObservable deletes multiple objects related to a specific parent.
+ * 
+ * @param parentElementId - The ID of the parent element
+ * @param parentKey - The key of the parent object
+ * @param childElementId - The ID of the child element to delete
+ * @param childKeys - Array of keys of the child objects to delete
+ * 
+ * @returns Observable resolving to true if deletion was successful
+ */
+export function deleteRelatedObjectsAsObservable(parentElementId: string, parentKey: string, childElementId: string, childKeys: string[]): Observable<boolean> {
+    return from(deleteRelatedObjects(parentElementId, parentKey, childElementId, childKeys));
+}
+
+// ================================================================================
+// CONTENT RESOURCE FUNCTIONS
+// ================================================================================
 
 /**
  * getOrCreateResource retrieves an existing content resource by its key, or creates a new one
@@ -895,6 +901,117 @@ export function createOrUpdateResourceAsObservable(resourceKey: string | null, f
     return from(createOrUpdateResource(resourceKey, fileToUpload, publicFlag, resourceType, tags));
 }
 
+// ================================================================================
+// UTILITY FUNCTIONS
+// ================================================================================
+
+/**
+ * sortObjectArray is a helper function that sorts the passed array in place by the given
+ * attributes. Sorting by nested attributes in the form of a delimited attribute string are
+ * supported (e.g., "attribute.nestedAttribute").
+ * 
+ * @param array - The array to sort
+ * @param sort - Array of sort field specifications
+ * @returns The sorted array
+ */
+export function sortObjectArray<T>(array: Array<T>, sort: SortField[]): Array<T> {
+
+    return array.sort((a: T, b: T) => {
+
+        let comparison = 0;
+        for (let s of sort) {
+            let valueA = getValueFromObject(a, s.attributeId);
+            let valueB = getValueFromObject(b, s.attributeId);
+
+            comparison = compareValues(valueA, valueB, !!s.descending, !!s.caseInsensitive);
+            if (comparison !== 0) {
+                break;
+            }
+        }
+
+        return comparison;
+    });
+}
+
+/**
+ * compareValues is a helper function that compares two values for sorting purposes. If the values
+ * are strings, the comparison is case-insensitive. If the values are numbers, the comparison is
+ * performed numerically. 
+ * 
+ * @param valueA - First value to compare
+ * @param valueB - Second value to compare
+ * @param descending - Whether to sort in descending order
+ * @param caseInsensitive - Whether to perform case-insensitive comparison for strings
+ * 
+ * @returns Comparison result (-1, 0, or 1)
+ */
+export function compareValues(valueA: any, valueB: any, descending: boolean, caseInsensitive: boolean): number {
+
+    if (caseInsensitive && (typeof valueA === 'string' || valueA instanceof String)) {
+
+        if (valueA && valueB) {
+            let comp = (<string>valueA).toLowerCase().localeCompare((<string>valueB).toLowerCase());
+            if (descending) {
+                comp = comp * -1;
+            }
+            return comp;
+        } else if (valueA && !valueB) {
+            return -1;
+        } else if (!valueA && valueB) {
+            return 1;                
+        } else {
+            return 0;
+        }
+    } else {
+
+        if (valueA < valueB) {
+            return (descending ? 1 : -1);
+        }
+        if (valueA > valueB) {
+            return (descending ? -1 : 1);
+        }
+    }
+    return 0;    
+}
+
+/**
+ * getValueFromObject is a helper function that extracts a value from an object using a dot-notation
+ * path. The path can include relationships. Relationship IDs may include a colon delimiter (e.g.,
+ * "accountMember:ownerAccountMemberKey") to specify the key of the related object. This is useful
+ * when an element has more than one relationship to the same object type. Otherwise, if only one
+ * relationship to the same object type exists, the key may be specified without the relationship ID
+ * (e.g., simply, "accountMember").
+ * 
+ * @param object - The object to extract value from
+ * @param attribute - The attribute path (e.g., "user.address.city")
+ * 
+ * @returns The extracted value
+ */
+export function getValueFromObject(object: any, attribute: string): any {
+
+    let components = attribute.split(".");
+
+    let value = object;
+    for (let component of components) {
+
+        if (value) {
+            // If a relationship specifies a key, it will be in the format [datatype]:[key]. Otherwise the colon
+            // delimiter will not be present.
+            // The related value will be in a field named after the key. For example: accountMember:ownerAccountMemberKey
+            // the related owner account member will be in a field called "ownerAccountMember".
+            let compSplit = component.split(":");
+            if (compSplit.length > 1) {
+                let keyField = compSplit[1];
+                value = value[keyField.replace("Key", "")];
+            } else {
+                value = value[component];
+            }
+        }
+    }
+
+    return value;
+}
+
 /**
  * debounceFn is a utility function that debounces a function call. It is used to prevent multiple
  * calls to the same function within a short period of time.
@@ -910,89 +1027,4 @@ export function debounceFn<T extends (...args: any[]) => void>(fn: T, wait = 200
         clearTimeout(timeout);
         timeout = setTimeout(() => fn(...args), wait);
     };
-}
-
-/**
- * deleteRelatedObject deletes a single object related to a specific parent.
- * 
- * @param parentElementId - The ID of the parent element
- * @param parentKey - The key of the parent object
- * @param childElementId - The ID of the child element to delete
- * @param childKey - The key of the child object to delete
- * 
- * @returns Promise resolving to true if deletion was successful
- */
-export async function deleteRelatedObject(parentElementId: string, parentKey: string, childElementId: string, childKey: string): Promise<boolean> {
-
-    if (!userContext) {
-        throw new Error("userContext is required but not available; check that the initialize function has been called");
-    }
-
-    let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${parentElementId}/${parentKey}/${childElementId}/${childKey}`;
-    let authToken = await lastValueFrom(getAuthToken());
-
-    console.log("Sending DELETE request to " + url + " with token " + authToken);
-
-    let response = await axios.delete(url, {
-        headers: { "Authorization": `Bearer ${authToken}` },
-    });
-
-    return response.status === 204;
-}
-
-/**
- * deleteRelatedObjectAsObservable deletes a single object related to a specific parent.
- * 
- * @param parentElementId - The ID of the parent element
- * @param parentKey - The key of the parent object
- * @param childElementId - The ID of the child element to delete
- * @param childKey - The key of the child object to delete
- * 
- * @returns Observable resolving to true if deletion was successful
- */
-export function deleteRelatedObjectAsObservable(parentElementId: string, parentKey: string, childElementId: string, childKey: string): Observable<boolean> {
-    return from(deleteRelatedObject(parentElementId, parentKey, childElementId, childKey));
-}
-
-/**
- * deleteRelatedObjects deletes multiple objects related to a specific parent.
- * 
- * @param parentElementId - The ID of the parent element
- * @param parentKey - The key of the parent object
- * @param childElementId - The ID of the child element to delete
- * @param childKeys - Array of keys of the child objects to delete
- * 
- * @returns Promise resolving to true if deletion was successful
- */
-export async function deleteRelatedObjects(parentElementId: string, parentKey: string, childElementId: string, childKeys: string[]): Promise<boolean> {
-
-    if (!userContext) {
-        throw new Error("userContext is required but not available; check that the initialize function has been called");
-    }
-
-    let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${parentElementId}/${parentKey}/${childElementId}`;
-    let authToken = await lastValueFrom(getAuthToken());
-
-    console.log("Sending DELETE request to " + url + " with token " + authToken);
-
-    let response = await axios.delete(url, {
-        headers: { "Authorization": `Bearer ${authToken}` },
-        params: { keys: childKeys.join(",") },
-    });
-
-    return response.status === 204;
-}
-
-/**
- * deleteRelatedObjectsAsObservable deletes multiple objects related to a specific parent.
- * 
- * @param parentElementId - The ID of the parent element
- * @param parentKey - The key of the parent object
- * @param childElementId - The ID of the child element to delete
- * @param childKeys - Array of keys of the child objects to delete
- * 
- * @returns Observable resolving to true if deletion was successful
- */
-export function deleteRelatedObjectsAsObservable(parentElementId: string, parentKey: string, childElementId: string, childKeys: string[]): Observable<boolean> {
-    return from(deleteRelatedObjects(parentElementId, parentKey, childElementId, childKeys));
 }
