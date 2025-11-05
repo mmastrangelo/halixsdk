@@ -39,29 +39,29 @@ export const handler = async (event) => {
   // Refresh the object from the server
   let fullObj;
   try {
-    fullObj = await hx.getObject("exampleType", obj.objKey);
+    fullObj = await hx.getObject('exampleType', obj.objKey);
   } catch (err) {
-    console.error("Error fetching object", err);
-    return hx.prepareErrorResponse("Failed to retrieve data");
+    console.error('Error fetching object', err);
+    return hx.prepareErrorResponse('Failed to retrieve data');
   }
 
   // Perform updates or logic
-  fullObj.status = "Updated";
+  fullObj.status = 'Updated';
 
   // Save the updated object
   let saved;
   try {
-    saved = await hx.saveRelatedObject("parentType", fullObj.parentKey, "exampleType", fullObj);
+    saved = await hx.saveRelatedObject('parentType', fullObj.parentKey, 'exampleType', fullObj);
   } catch (err) {
-    console.error("Error saving object", err);
-    return hx.prepareErrorResponse("Failed to save data");
+    console.error('Error saving object', err);
+    return hx.prepareErrorResponse('Failed to save data');
   }
 
   // Return a success response
   return hx.prepareSuccessResponse({
-    responseType: "formTemplateAction",
+    responseType: 'formTemplateAction',
     updatedSubject: saved,
-    successMessage: "Object saved successfully",
+    successMessage: 'Object saved successfully',
     isError: false
   });
 };
@@ -86,14 +86,40 @@ This action pattern is typical for use in Halix’s Lambda-style runtime environ
 | Function | Description |
 |----------|-------------|
 | `initialize(event)` | Initializes the SDK with event context |
-| `getObject(...)`, `getRelatedObjects(...)` | Retrieve objects from the Halix data layer |
-| `saveRelatedObject(...)` | Save objects and establish relationships |
+| `getObject(...)` / `getObjectAsObservable(...)` | Retrieve a single object |
+| `getRelatedObjects(...)` / `getRelatedObjectsAsObservable(...)` | Retrieve related objects |
+| `saveRelatedObject(...)` / `saveRelatedObjectAsObservable(...)` | Save objects and relationships |
+| `deleteRelatedObject(...)` / `deleteRelatedObjectAsObservable(...)` | Delete a single related object |
+| `deleteRelatedObjects(...)` / `deleteRelatedObjectsAsObservable(...)` | Delete multiple related objects (uses `keys` query param) |
 | `prepareSuccessResponse(...)` | Create a success response |
 | `prepareErrorResponse(...)` | Create an error response |
-| `sortObjectArray(...)` | Utility to sort object arrays |
-| `getValueFromObject(...)` | Access nested or relationship-based attributes |
 
-See [Full Documentation](https://mmastrangelo.github.io/halixsdk/) for more information.
+Notes:
+- Functions that interact with services require `initialize(event)` to have been called; they depend on `userContext`, `sandboxKey`, and `serviceAddress`.
+
+---
+
+## 📦 Content Resource Helpers
+
+These helpers simplify working with content resources and file uploads.
+
+| Function | Description |
+|----------|-------------|
+| `getOrCreateResource(...)` / `getOrCreateResourceAsObservable(...)` | Retrieve an existing content resource by key or create a new one |
+| `saveResource(...)` / `saveResourceAsObservable(...)` | Persist a content resource |
+| `sendFileContents(resourceKey, file, publicFlag)` / `sendFileContentsAsObservable(...)` | Upload file contents (multipart/form-data) to a content resource |
+| `createOrUpdateResource(resourceKey?, file, publicFlag, resourceType, tags)` / `createOrUpdateResourceAsObservable(...)` | Create or update a resource and upload the file in one call |
+
+---
+
+## 🧪 Utilities
+
+| Function | Description |
+|----------|-------------|
+| `getValueFromObject(object, attribute)` | Access nested or relationship-based attributes |
+| `debounceFn(fn, wait?)` | Debounce utility for throttling calls |
+| `compareValues(a, b, descending, caseInsensitive)` | Utility comparer for sorting |
+| `sortObjectArray(array, sort)` | Utility to sort object arrays |
 
 ---
 

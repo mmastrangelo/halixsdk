@@ -1,18 +1,32 @@
 {
   "name": "@halix/action-sdk",
-  "version": "1.0.9",
+  "version": "1.0.19",
   "description": "Halix Platform action SDK",
   "types": "./lib/cjs/types/index.d.ts",
   "main": "./lib/cjs/index.js",
   "files": [
     "lib/**/*"
   ],
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "peerDependencies": {
+    "typescript": ">=4.5.0"
+  },
+  "peerDependenciesMeta": {
+    "typescript": {
+      "optional": true
+    }
+  },
   "scripts": {
     "clean": "rm -rf ./lib",
     "build": "npm run clean && npm run build:esm && npm run build:cjs",
     "build:esm": "tsc -p ./tsconfig.esm.json && mv lib/esm/index.js lib/esm/index.mjs",
     "build:cjs": "tsc -p ./tsconfig.cjs.json",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage"
   },
   "repository": {
     "type": "git",
@@ -39,8 +53,11 @@
   },
   "devDependencies": {
     "@types/node": "^20.17.25",
+    "@vitest/coverage-v8": "^2.1.9",
     "eslint": "^8.57.1",
-    "typescript": "^5.8.2"
+    "typedoc": "^0.28.9",
+    "typescript": "^5.8.2",
+    "vitest": "^2.1.9"
   },
   "dependencies": {
     "axios": "^1.2.2",
