@@ -1,12 +1,23 @@
 {
   "name": "@halix/action-sdk",
-  "version": "1.0.18",
+  "version": "1.0.19",
   "description": "Halix Platform action SDK",
   "types": "./lib/cjs/types/index.d.ts",
   "main": "./lib/cjs/index.js",
   "files": [
     "lib/**/*"
   ],
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "peerDependencies": {
+    "typescript": ">=4.5.0"
+  },
+  "peerDependenciesMeta": {
+    "typescript": {
+      "optional": true
+    }
+  },
   "scripts": {
     "clean": "rm -rf ./lib",
     "build": "npm run clean && npm run build:esm && npm run build:cjs",
