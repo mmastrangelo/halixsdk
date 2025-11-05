@@ -15,1016 +15,113 @@
  * platform.
  */
 
-import axios from 'axios';
-import { from, Observable, of, lastValueFrom } from 'rxjs';
-
 // ================================================================================
-// GLOBAL VARIABLES AND INITIALIZATION
+// SDK GENERAL - GLOBALS, INITIALIZATION, COMMON TYPES
 // ================================================================================
 
-/**
- * authToken contains the authentication token that the action handler can use to make API requests
- * to Halix web services. This value is set upon calling the initialize function with incoming event
- * data.
- */
-export let getAuthToken: () => Observable<string>;
-
-/**
- * sandboxKey contains the sandbox key identifier; identifies the sandbox that the action handler is
- * running in. The sandbox identifies the current solution. This value is set upon calling the
- * initialize function with incoming event data.
- */
-export let sandboxKey: string;
-
-/**
- * serviceAddress contains the URL of the Halix service that the action handler can use to make API
- * requests to. This value is set upon calling the initialize function with incoming event data.
- */
-export let serviceAddress: string;
-
-/**
- * actionSubject contains the identifier of the subject of the action. The subject is the object
- * that the action is being performed on. The action subject's contents will differ depending on the
- * context in which the action is being executed. This value is set upon calling the initialize
- * function with incoming event data.
- * - for formTemplateActions, the action subject is the data being edited on the form
- * - for pageTemplateActions, the action subject is record containing the context variables and
- *   their corresponding values on the page
- * - for objectSaveActions, the action subject is the object being saved
- * - for calculatedFieldActions, the action subject is the object containing the calculated field
- * - for singleValueActions, the action subject may differ depending on the caller
- */
-export let actionSubject: any;
-
-/**
- * userContext contains the user context information for the user that is executing the action.
- * This value is set upon calling the initialize function with incoming event data.
- */
-export let userContext: UserContext;
-
-/**
- * params contains the parameters passed to the action. If an input dialog is used, params will
- * contain the values entered in the dialog. This value is set upon calling the initialize
- * function with incoming event data.
- */
-export let params: string;
-
-/**
- * useBody is a flag indicating how responses should be formatted. If true, the response will be
- * returned as an object with the HTTP response code and ActionResponse in the body field. If false,
- * the ActionResponse will be returned directly. Typically, this does not need to be set by the
- * action handler and should remain false.
- */
-export let useBody: boolean;
-
-/**
- * initialize initializes the SDK with event data. This should be called at the beginning of the
- * action handler to set up the SDK with incoming information, including context information, input
- * parameters, and authentication information needed to make API requests to the Halix service.
- * 
- * @param event - The event object containing authentication and context information
- */
-export function initialize(event: { body?: IncomingEventBody }) {
-
-    let body: any = event;
-    if (event.body) {
-        body = event.body;
-        useBody = true;
-    }
-
-    if (body) {
-        ({ sandboxKey, serviceAddress, actionSubject, userContext, params } = body);
-
-        if (body.authToken) {
-            getAuthToken = () => of(body.authToken);
-        } else if (body.authTokenRetriever) {
-            getAuthToken = body.authTokenRetriever;
-        }
-    }
-}
-
-// ================================================================================
-// INTERFACES AND TYPES
-// ================================================================================
-
-/**
- * SortField is an interface for specifying sort fields.
- */
-export interface SortField {
-    /** The attribute ID to sort by */
-    attributeId: string; 
-    /** Whether to sort in descending order */
-    descending?: boolean;
-    /** Whether to perform case-insensitive comparison */
-    caseInsensitive?: boolean;
-    /** Whether to use auto-sequencing */
-    autoSequence?: boolean;
-}
-
-/**
- * SaveOptions is an interface for specifying save operation options.
- */
-export interface SaveOptions {
-    /** Whether to bypass validation */
-    bypassValidation?: boolean;
-}
-
-/**
- * UserContext is an interface defining the properties of the user context.
- */
-export interface UserContext {
-    user: any;
-    userProxy: any;
-    orgProxy: any;
-    orgProxyKey: string;
-    orgKey: string;
-    userProxyKey: string;
-}
-
-/**
- * ContentResource is an interface defining the properties of a content resource.
- */
-export interface ContentResource {
-    objKey?: string;
-    isPublic: boolean;
-    resourceType: string;
-    tags: string[];
-    organizationKey: string;
-    sandboxKey: string;
-    userKey: string;
-    fileName?: string;
-    fileSize?: number;
-    mimeType?: string;
-    contentType?: string;
-    name?: string | null;
-    extension?: string | null;
-    deserialize?: (data: any) => ContentResource;
-}
-
-/**
- * IncomingEventBody is an interface defining the properties of an incoming event body. The halix
- * platform provides these properties when an action is triggered.
- */
-export interface IncomingEventBody {
-    authToken?: string;
-    authTokenRetriever?: () => Observable<string>;
-    sandboxKey: string;
-    serviceAddress: string;
-    actionSubject: any;
-    userContext: UserContext;
-    params: Record<string, any>;
-}
-
-/**
- * BaseActionResponse is an interface defining the base properties of an action response.
- */
-export interface BaseActionResponse {
-    /** 
-     * The type of action response 
-     * 
-     * listAction - Use when the action is being run from a list
-     * formTemplateAction - Use when the action is being run from a form template
-     * pageTemplateAction - Use when the action is being run from a page template
-     * objectSaveAction - Use when the action has been specified for use on object save events
-     * calculatedFieldAction - Use when the action is being used to determine calculated field values
-     * singleValueAction - Use when the action is being used to determine a single value in specific
-     * build-in platform events (e.g., determining shopping cart prices)
-     * error - Use when the action is not successful
-     */
-    responseType: "listAction" | "formTemplateAction" | "pageTemplateAction" | "objectSaveAction" | "calculatedFieldAction" | "singleValueAction" | "error";
-    /** Whether the action is an error */
-    isError: boolean;
-    /** Notification configurations; present only if the action should trigger one or more notifications */
-    notificationConfigs?: NotificationConfig[];
-}
-
-/**
- * ActionResponse is an interface defining the properties of an action response.
- */
-export type ActionResponse = ListActionResponse | FormTemplateActionResponse | PageTemplateActionResponse | ObjectSaveActionResponse | CalculatedFieldActionResponse | SingleValueActionResponse;
-
-/**
- * NotificationConfig is an interface defining a notification that should be triggered by a
- * successful action response.
- */ 
-export interface NotificationConfig {
-    /** The ID of a notification definition setup within the solution */
-    notificationDefinitionId: string;
-    /** The key of the organization proxy */
-    organizationProxyKey: string;
-    /** The object type of the data associated with the notification */
-    dataObjectType: string;
-    /** The key of the data object associated with the notification */
-    dataObjectKey: string;
-    /** The parameters to pass to the notification */
-    params: Record<string, any>;
-
-    emailConfig?: {
-        /** The type of user proxy to send the email to */
-        recipientUserProxyType: string;
-        /** The keys of the user proxies to send the email to */
-        recipientUserProxyKeys: string[];
-        /** The email address of the sender */
-        fromEmailAddress?: string;
-        /** The name of the sender */
-        fromNameView?: string;
-        /** The email address to reply to */
-        replyEmailAddress?: string;
-        /** The email address to send the email to; use when sending emails to non-user proxies/free-form email addresses; can contain a comma-separated list of email addresses */
-        recipientEmail?: string;
-    };
-
-    smsConfig?: {
-        /** The type of user proxy to send the SMS to */
-        recipientUserProxyType: string;
-        /** The keys of the user proxies to send the SMS to */
-        recipientUserProxyKeys: string[];
-        /** The phone number to send the SMS to; can contain a comma-separated list of phone numbers */
-        recipientPhone: string;
-    };
-
-    pushConfig?: {
-        /** The type of user proxy to send the push notification to */
-        recipientUserProxyType: string;
-        /** The keys of the user proxies to send the push notification to */
-        recipientUserProxyKeys: string[];
-        /** The navigation data to pass to the push notification */
-        navigationData?: Record<string, string>;
-    };   
-}
-
-/**
- * ListActionResponse is an interface defining the properties of a list action response. These
- * properties are expected by the list framework unpon receiving an action response from an action
- * handler.
- */
-export interface ListActionResponse extends BaseActionResponse {
-    responseType: "listAction";
-    updatedSubject: any;
-    successMessage: string;
-}
-
-/**
- * FormTemplateActionResponse is an interface defining the properties of a form template action
- * response. These properties are expected by the form framework unpon receiving an action response
- * from an action handler.
- */
-export interface FormTemplateActionResponse extends BaseActionResponse {
-    responseType: "formTemplateAction";
-    updatedSubject: any;
-    successMessage: string;
-}
-
-/**
- * PageTemplateActionResponse is an interface defining the properties of a page template action
- * response. These properties are expected by the page framework unpon receiving an action response
- * from an action handler.
- */
-export interface PageTemplateActionResponse extends BaseActionResponse {
-    responseType: "pageTemplateAction";
-    successMessage: string;
-    updatedSubject?: Record<string, any>;
-    refreshPage?: boolean;
-}
-
-/**
- * ObjectSaveActionResponse is an interface defining the properties of an object save action
- * response. These properties are expected by the object save framework unpon receiving an action
- * response from an action handler.
- */
-export interface ObjectSaveActionResponse extends BaseActionResponse {
-    responseType: "objectSaveAction";
-    updatedSubject: any;
-    successMessage: string;
-}
-
-/**
- * CalculatedFieldActionResponse is an interface defining the properties of a calculated field
- * action response. These properties are expected by the calculated field framework unpon receiving
- * an action response from an action handler.
- */
-export interface CalculatedFieldActionResponse extends BaseActionResponse {
-    responseType: "calculatedFieldAction";
-    calculatedValue: any;
-}
-
-/**
- * SingleValueActionResponse is an interface defining the properties of a single value action
- * response. These properties are expected by the caller of the action.
- */
-export interface SingleValueActionResponse extends BaseActionResponse {
-    responseType: "singleValueAction";
-    successMessage: string;
-    value: any;
-}
-
-/**
- * ErrorResponse is an interface defining the properties of an error response.
- */
-export interface ErrorResponse {
-    responseType: "error";
-    errorMessage: string;
-}
-
-// ================================================================================
-// RESPONSE HELPER FUNCTIONS
-// ================================================================================
-
-/**
- * prepareSuccessResponse prepares a success response in the appropriate format. The action handler
- * should return an ActionResponse response when the action is successful. If useBody is true, the
- * response will be returned as an object with the HTTP response code and the ActionResponse in the
- * body field. If useBody is false, the ActionResponse will be returned directly.
- * 
- * @param successResponse - The value to return
- * 
- * @returns Formatted success response; an ActionResponse unless useBody is true
- */
-export function prepareSuccessResponse(successResponse: ActionResponse): { statusCode: number; body: string } | ActionResponse {
-    if (useBody) {
-        return {
-            statusCode: 200, 
-            body: JSON.stringify(successResponse)
-        };            
-    }
+export {
+    // Globals
+    getAuthToken,
+    sandboxKey,
+    serviceAddress,
+    actionSubject,
+    userContext,
+    params,
+    useBody,
     
-    return successResponse;
-}
-
-/**
- * prepareErrorResponse prepares an error response in the appropriate format. The action handler
- * should return an ErrorResponse response when the action is not successful. If useBody is true,
- * the response will be returned as an object with the HTTP response code and the ErrorResponse in
- * the body field. If useBody is false, the ErrorResponse will be returned directly.
- * 
- * @param errorMessage - The error message
- * 
- * @returns Formatted error response; an ErrorResponse unless useBody is true
- */
-export function prepareErrorResponse(errorMessage: string): { statusCode: number; body: string } | ErrorResponse {
-    if (useBody) {
-        return {
-            statusCode: 400, 
-            body: JSON.stringify({ errorMessage })
-        };        
-    }
-
-    return { errorMessage, responseType: "error" };
-}
+    // Initialization
+    initialize,
+    
+    // Common Interfaces
+    type UserContext,
+    type IncomingEventBody,
+    
+    // Action Response Types
+    type BaseActionResponse,
+    type ActionResponse,
+    type NotificationConfig,
+    type ListActionResponse,
+    type FormTemplateActionResponse,
+    type PageTemplateActionResponse,
+    type ObjectSaveActionResponse,
+    type CalculatedFieldActionResponse,
+    type SingleValueActionResponse,
+    type ErrorResponse,
+    
+    // Response Helpers
+    prepareSuccessResponse,
+    prepareErrorResponse
+} from './sdk-general';
 
 // ================================================================================
-// DATA RETRIEVAL FUNCTIONS
+// DATA CRUD FUNCTIONS
 // ================================================================================
 
-/**
- * getObject retrieves a single object from the database by its data element ID and key.
- * 
- * @param dataElementId - The ID of the data element
- * @param key - The key of the object
- * @param fetchedRelationships - Optional array of relationships to fetch; if provided, the returned
- * object will include the specified related objects as nested objects
- * @returns Promise resolving to the object data
- */
-export async function getObject(dataElementId: string, key: string, fetchedRelationships?: string[]) {
-
-    let params;
-    if (fetchedRelationships) {
-        let p = {};
-        if (fetchedRelationships) {
-            (<any>p).fetchedRelationships = fetchedRelationships.join(",");
-        }
-
-        params = new URLSearchParams(p);
-    }
-
-    let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${dataElementId}/${key}`;
-
-    let authToken = await lastValueFrom(getAuthToken());
-
-    console.log("Sending GET request to " + url + " with token " + authToken);
-
-    let response = await axios.get(url, {
-        headers: { "Authorization": `Bearer ${authToken}` },
-        params: params,
-    });
-
-    return response.data;
-}
-
-/**
- * getObjectAsObservable retrieves a single object from the database by its data element ID and key.
- * 
- * @param dataElementId - The ID of the data element
- * @param key - The key of the object
- * @param fetchedRelationships - Optional array of relationships to fetch; if provided, the returned
- * object will include the specified related objects as nested objects
- * 
- * @returns Observable resolving to the object data
- */
-export function getObjectAsObservable(dataElementId: string, key: string, fetchedRelationships?: string[]): Observable<any> {
-    return from(getObject(dataElementId, key, fetchedRelationships));
-}
-
-/**
- * getRelatedObjects retrieves an array of objects from the the database. The objects returned are
- * related to a parent through a defined relationship in the schema. In a typical setup, action's
- * auth token must have scope access to the parent object in order to access all of its related
- * objects.
- * 
- * It is common to use getRelatedObjects to retrieve all objects belonging to the current user proxy
- * or organization proxy. For example, in a user context where the current user proxy element is
- * "customer," an action might want to retrieve all "purchase" objects related to the current
- * customer. Similarly, in an organization context where the current organization proxy is
- * "business," an action might want to retrieve all "employee" objects related to the current
- * business.
- * 
- * @param parentElementId - The ID of the parent element
- * @param parentKey - The key of the parent object
- * @param elementId - The ID of the element
- * @param filter - Optional filter criteria for the query; if not provided, all related objects will
- * be returned
- * @param fetchedRelationships - Optional array of relationships to fetch; if provided, the returned
- * objects will include the specified related objects as nested objects
- * 
- * @returns Promise resolving to an array of objects
- */
-export async function getRelatedObjects(parentElementId: string, parentKey: string, elementId: string, filter?: string, fetchedRelationships?: string[]): Promise<any[]> {
-
-    let params;
-    if (filter || fetchedRelationships) {
-        let p = {};
-        if (filter) {
-            (<any>p).filter = filter;
-        }
-        if (fetchedRelationships) {
-            (<any>p).fetchedRelationships = fetchedRelationships.join(",");
-        }
-
-        params = new URLSearchParams(p);
-    }
-
-    let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${parentElementId}/${parentKey}/${elementId}`;
-
-    let authToken = await lastValueFrom(getAuthToken());
-
-    console.log("Sending GET request to " + url + " with token " + authToken);
-
-    let response = await axios.get(url, {
-        headers: { "Authorization": `Bearer ${authToken}` },
-        params: params,
-    });
-
-    return response.data;
-}
-
-/**
- * getRelatedObjectsAsObservable retrieves an array of objects from the the database. The objects
- * returned are related to a parent through a defined relationship in the schema. In a typical
- * setup, action's auth token must have scope access to the parent object in order to access all of
- * its related objects.
- * 
- * It is common to use getRelatedObjects to retrieve all objects belonging to the current user proxy
- * or organization proxy. For example, in a user context where the current user proxy element is
- * "customer," an action might want to retrieve all "purchase" objects related to the current
- * customer. Similarly, in an organization context where the current organization proxy is
- * "business," an action might want to retrieve all "employee" objects related to the current
- * business.
- * 
- * @param parentElementId - The ID of the parent element
- * @param parentKey - The key of the parent element
- * @param elementId - The ID of the element
- * @param filter - Optional filter criteria for the query; if not provided, all related objects will
- * be returned
- * @param fetchedRelationships - Optional array of relationships to fetch; if provided, the returned
- * objects will include the specified related objects as nested objects
- * 
- * @returns Observable resolving to an array of objects
- */
-export function getRelatedObjectsAsObservable(parentElementId: string, parentKey: string, elementId: string, filter?: string, fetchedRelationships?: string[]): Observable<any[]> {
-    return from(getRelatedObjects(parentElementId, parentKey, elementId, filter, fetchedRelationships));
-}
+export {
+    // Interfaces
+    type SaveOptions,
+    
+    // Data Retrieval
+    getObject,
+    getObjectAsObservable,
+    getRelatedObjects,
+    getRelatedObjectsAsObservable,
+    
+    // Data Save
+    saveRelatedObject,
+    saveRelatedObjectAsObservable,
+    
+    // Data Delete
+    deleteRelatedObject,
+    deleteRelatedObjectAsObservable,
+    deleteRelatedObjects,
+    deleteRelatedObjectsAsObservable
+} from './data-crud';
 
 // ================================================================================
-// DATA SAVE FUNCTIONS
+// CONTENT FUNCTIONS
 // ================================================================================
 
-/**
- * saveRelatedObject saves a related object to the database. The objectToSave is saved, and its
- * relationship to the parent object is established based on the relationship specified in the
- * schema. The objectToSave must have a relationship to the parent object and the user must have
- * scope access to the parent object.
- * 
- * @param parentElementId - The ID of the parent element
- * @param parentKey - The key of the parent object
- * @param elementId - The element ID of the object to save
- * @param objectToSave - The object data to save (as a JSON string)
- * @param opts - Optional save options
- * 
- * @returns Promise resolving to saved object, including any updates made to the object during the
- * save operation (such as assigning an objKey if the object is new), or the assignment of
- * calculated values
- */
-export async function saveRelatedObject(parentElementId: string, parentKey: string, elementId: string, objectToSave: string, opts?: SaveOptions): Promise<any> {
-
-    let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${parentElementId}/${parentKey}/${elementId}`;
-
-    if (opts?.bypassValidation === false) {
-        url += "?bypassValidation=false";
-    } else {
-        url += "?bypassValidation=true";
-    }
-
-    let authToken = await lastValueFrom(getAuthToken());
-
-    console.log("Sending POST request to " + url + " with token " + authToken);
-
-    let response = await axios.post(url, objectToSave, {
-        headers: { "Authorization": `Bearer ${authToken}` },
-    });
-
-    return response.data;
-}
-
-/** 
- * saveRelatedObjectAsObservable saves a related object to the database. The objectToSave is saved,
- * and its relationship to the parent object is established based on the relationship specified in
- * the schema. The objectToSave must have a relationship to the parent object and the user must have
- * scope access to the parent object.
- * 
- * @param parentElementId - The ID of the parent element
- * @param parentKey - The key of the parent object
- * @param elementId - The element ID of the object to save
- * @param objectToSave - The object data to save (as a JSON string)
- * @param opts - Optional save options
- * 
- * @returns Observable resolving to saved object, including any updates made to the object during
- * the save operation (such as assigning an objKey if the object is new), or the assignment of
- * calculated values
- */
-export function saveRelatedObjectAsObservable(parentElementId: string, parentKey: string, elementId: string, objectToSave: string, opts?: SaveOptions): Observable<any> {
-    return from(saveRelatedObject(parentElementId, parentKey, elementId, objectToSave, opts));
-}
+export {
+    // Content Interface
+    type ContentResource,
+    
+    // Content Functions
+    getOrCreateResource,
+    getOrCreateResourceAsObservable,
+    saveResource,
+    saveResourceAsObservable,
+    sendFileContents,
+    sendFileContentsAsObservable,
+    createOrUpdateResource,
+    createOrUpdateResourceAsObservable
+} from './content';
 
 // ================================================================================
-// DATA DELETE FUNCTIONS
+// LIST DATA FUNCTIONS
 // ================================================================================
 
-/**
- * deleteRelatedObject deletes a single object related to a specific parent.
- * 
- * @param parentElementId - The ID of the parent element
- * @param parentKey - The key of the parent object
- * @param childElementId - The ID of the child element to delete
- * @param childKey - The key of the child object to delete
- * 
- * @returns Promise resolving to true if deletion was successful
- */
-export async function deleteRelatedObject(parentElementId: string, parentKey: string, childElementId: string, childKey: string): Promise<boolean> {
-
-    if (!userContext) {
-        throw new Error("userContext is required but not available; check that the initialize function has been called");
-    }
-
-    let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${parentElementId}/${parentKey}/${childElementId}/${childKey}`;
-    let authToken = await lastValueFrom(getAuthToken());
-
-    console.log("Sending DELETE request to " + url + " with token " + authToken);
-
-    let response = await axios.delete(url, {
-        headers: { "Authorization": `Bearer ${authToken}` },
-    });
-
-    return response.status === 204;
-}
-
-/**
- * deleteRelatedObjectAsObservable deletes a single object related to a specific parent.
- * 
- * @param parentElementId - The ID of the parent element
- * @param parentKey - The key of the parent object
- * @param childElementId - The ID of the child element to delete
- * @param childKey - The key of the child object to delete
- * 
- * @returns Observable resolving to true if deletion was successful
- */
-export function deleteRelatedObjectAsObservable(parentElementId: string, parentKey: string, childElementId: string, childKey: string): Observable<boolean> {
-    return from(deleteRelatedObject(parentElementId, parentKey, childElementId, childKey));
-}
-
-/**
- * deleteRelatedObjects deletes multiple objects related to a specific parent.
- * 
- * @param parentElementId - The ID of the parent element
- * @param parentKey - The key of the parent object
- * @param childElementId - The ID of the child element to delete
- * @param childKeys - Array of keys of the child objects to delete
- * 
- * @returns Promise resolving to true if deletion was successful
- */
-export async function deleteRelatedObjects(parentElementId: string, parentKey: string, childElementId: string, childKeys: string[]): Promise<boolean> {
-
-    if (!userContext) {
-        throw new Error("userContext is required but not available; check that the initialize function has been called");
-    }
-
-    let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${parentElementId}/${parentKey}/${childElementId}`;
-    let authToken = await lastValueFrom(getAuthToken());
-
-    console.log("Sending DELETE request to " + url + " with token " + authToken);
-
-    let response = await axios.delete(url, {
-        headers: { "Authorization": `Bearer ${authToken}` },
-        params: { keys: childKeys.join(",") },
-    });
-
-    return response.status === 204;
-}
-
-/**
- * deleteRelatedObjectsAsObservable deletes multiple objects related to a specific parent.
- * 
- * @param parentElementId - The ID of the parent element
- * @param parentKey - The key of the parent object
- * @param childElementId - The ID of the child element to delete
- * @param childKeys - Array of keys of the child objects to delete
- * 
- * @returns Observable resolving to true if deletion was successful
- */
-export function deleteRelatedObjectsAsObservable(parentElementId: string, parentKey: string, childElementId: string, childKeys: string[]): Observable<boolean> {
-    return from(deleteRelatedObjects(parentElementId, parentKey, childElementId, childKeys));
-}
-
-// ================================================================================
-// CONTENT RESOURCE FUNCTIONS
-// ================================================================================
-
-/**
- * getOrCreateResource retrieves an existing content resource by its key, or creates a new one
- * if the key is not provided. If a resource key is provided, it attempts to fetch the existing
- * resource from the server. If no key is provided, it creates a new resource with the specified
- * properties.
- * 
- * @param resourceKey - Optional key of the existing resource to retrieve
- * @param fileToUpload - Optional file or blob to upload
- * @param publicFlag - Whether the resource should be public
- * @param resourceType - The type of resource
- * @param tags - Array of tags for the resource
- * 
- * @returns Promise resolving to a ContentResource
- */
-export async function getOrCreateResource(resourceKey: string | null, fileToUpload: File | Blob | null, publicFlag: boolean, resourceType: string, tags: string[]): Promise<ContentResource> {
-
-    if (!userContext) {
-        throw new Error("userContext is required but not available; check that the initialize function has been called");
-    }
-
-    if (resourceKey) {
-        let url = `${serviceAddress}/sandboxes/${sandboxKey}/contentResource/${resourceKey}`;
-        let authToken = await lastValueFrom(getAuthToken());
-
-        console.log("Sending GET request to " + url + " with token " + authToken);
-
-        let response = await axios.get(url, {
-            headers: { "Authorization": `Bearer ${authToken}` },
-        });
-
-        let resource: ContentResource = response.data;
-        if (fileToUpload) {
-            resource.contentType = fileToUpload.type;
-
-            // Null out the name and extension; the server will set these if they are blank
-            resource.name = null;
-            resource.extension = null;
-        }
-        return resource;
-    }
-
-    let newResource: ContentResource = {
-        isPublic: publicFlag,
-        resourceType: resourceType,
-        tags: tags,
-        organizationKey: userContext.orgKey,
-        sandboxKey: sandboxKey,
-        userKey: userContext.user.objKey
-    };
-
-    if (fileToUpload) {
-        newResource.contentType = fileToUpload.type;
-
-        // Null out the name and extension; the server will set these if they are blank
-        newResource.name = null;
-        newResource.extension = null;
-    }
+export { 
+    // Interfaces
+    type SortField,
+    type DataSortField,
+    type ListDataRequest,
+    type ListDataResponse,
+    type ListDataOptions,
+    type ListDataSearchOptions,
     
-    return newResource;
-}
-
-/**
- * getOrCreateResourceAsObservable retrieves an existing content resource by its key, or creates a new one
- * if the key is not provided. If a resource key is provided, it attempts to fetch the existing
- * resource from the server. If no key is provided, it creates a new resource with the specified
- * properties.
- * 
- * @param resourceKey - Optional key of the existing resource to retrieve
- * @param fileToUpload - Optional file or blob to upload
- * @param publicFlag - Whether the resource should be public
- * @param resourceType - The type of resource
- * @param tags - Array of tags for the resource
- * 
- * @returns Observable resolving to a ContentResource
- */
-export function getOrCreateResourceAsObservable(resourceKey: string | null, fileToUpload: File | Blob | null, publicFlag: boolean, resourceType: string, tags: string[]): Observable<ContentResource> {
-    return from(getOrCreateResource(resourceKey, fileToUpload, publicFlag, resourceType, tags));
-}
-
-/**
- * saveResource saves a content resource to the server. The resource is saved with appropriate
- * ownership parameters based on the current context (solution builder vs regular organization view).
- * 
- * @param resource - The ContentResource to save
- * 
- * @returns Promise resolving to the saved ContentResource
- */
-export async function saveResource(resource: ContentResource): Promise<ContentResource> {
-
-    if (!userContext) {
-        throw new Error("userContext is required but not available; check that the initialize function has been called");
-    }
-
-    let params: any = {};
-
-    if (userContext.orgProxy.objType === "Solution") {
-        // When in the solution builder view, content is owned by the solution. The solution key is the org proxy key in
-        // the builder view.
-        params.solutionKey = userContext.orgProxyKey;
-    } else {
-        params.organizationKey = userContext.orgKey;
-        params.userKey = userContext.user.objKey;
-    }
-
-    let url = `${serviceAddress}/sandboxes/${sandboxKey}/contentResource`;
-    let authToken = await lastValueFrom(getAuthToken());
-
-    console.log("Sending POST request to " + url + " with token " + authToken);
-
-    let response = await axios.post(url, JSON.stringify(resource), {
-        headers: { "Authorization": `Bearer ${authToken}` },
-        params: params,
-    });
-
-    return response.data;
-}
-
-/**
- * saveResourceAsObservable saves a content resource to the server. The resource is saved with appropriate
- * ownership parameters based on the current context (solution builder vs regular organization view).
- * 
- * @param resource - The ContentResource to save
- * 
- * @returns Observable resolving to the saved ContentResource
- */
-export function saveResourceAsObservable(resource: ContentResource): Observable<ContentResource> {
-    return from(saveResource(resource));
-}
-
-/**
- * sendFileContents uploads file contents to the server for a specific resource. The file is uploaded
- * via FormData with the appropriate scope and public flag settings.
- * 
- * @param resourceKey - The key of the resource to upload file contents for
- * @param fileToUpload - The file or blob to upload
- * @param publicFlag - Whether the file should be public
- * 
- * @returns Promise resolving to true if upload was successful
- */
-export async function sendFileContents(resourceKey: string, fileToUpload: File | Blob, publicFlag: boolean): Promise<boolean> {
-
-    if (!userContext) {
-        throw new Error("userContext is required but not available; check that the initialize function has been called");
-    }
-
-    let url = `${serviceAddress}/filecontent/${sandboxKey}/${resourceKey}`;
-    let authToken = await lastValueFrom(getAuthToken());
-
-    console.log("Sending file upload request to " + url + " with token " + authToken);
-
-    let formData = new FormData();
-    formData.append("fileUpload", fileToUpload);
-    formData.append("scopeKeyPath", userContext.orgProxyKey);
-    formData.append("public", String(publicFlag));
-
-    let response = await axios.post(url, formData, {
-        headers: { 
-            "Authorization": `Bearer ${authToken}`,
-            "Content-Type": "multipart/form-data"
-        },
-    });
-
-    return response.status === 204;
-}
-
-/**
- * sendFileContentsAsObservable uploads file contents to the server for a specific resource. The file is uploaded
- * via FormData with the appropriate scope and public flag settings.
- * 
- * @param resourceKey - The key of the resource to upload file contents for
- * @param fileToUpload - The file or blob to upload
- * @param publicFlag - Whether the file should be public
- * 
- * @returns Observable resolving to true if upload was successful
- */
-export function sendFileContentsAsObservable(resourceKey: string, fileToUpload: File | Blob, publicFlag: boolean): Observable<boolean> {
-    return from(sendFileContents(resourceKey, fileToUpload, publicFlag));
-}
-
-/**
- * createOrUpdateResource creates a new content resource or updates an existing one, then uploads
- * the file contents to that resource. If a resourceKey is provided, it updates the existing resource;
- * otherwise, it creates a new resource and uploads the file to the newly created resource.
- * 
- * @param resourceKey - Optional key of the existing resource to update; if not provided, a new resource is created
- * @param fileToUpload - The file or blob to upload
- * @param publicFlag - Whether the resource should be public
- * @param resourceType - The type of resource
- * @param tags - Array of tags for the resource
- * 
- * @returns Promise resolving to the ContentResource with uploaded file
- */
-export async function createOrUpdateResource(resourceKey: string | null, fileToUpload: File | Blob, publicFlag: boolean, resourceType: string, tags: string[]): Promise<ContentResource> {
-
-    if (!userContext) {
-        throw new Error("userContext is required but not available; check that the initialize function has been called");
-    }
-
-    // Get or create the resource
-    let resource = await getOrCreateResource(resourceKey, fileToUpload, publicFlag, resourceType, tags);
-    
-    // Save the resource to get the objKey if it's new
-    let savedResource = await saveResource(resource);
-    
-    // Upload the file contents
-    if (!savedResource.objKey) {
-        throw new Error("Resource was saved but no objKey was returned");
-    }
-    
-    let uploadSuccess = await sendFileContents(savedResource.objKey, fileToUpload, publicFlag);
-    
-    if (!uploadSuccess) {
-        throw new Error("Failed to upload file contents");
-    }
-    
-    // Get the updated resource with file metadata
-    let updatedResource = await getOrCreateResource(savedResource.objKey, fileToUpload, publicFlag, resourceType, []);
-    
-    // Set the name if it's not set and we have a File with a name
-    if (updatedResource && !updatedResource.name && fileToUpload instanceof File) {
-        updatedResource.name = fileToUpload.name;
-    }
-    
-    return updatedResource;
-}
-
-/**
- * createOrUpdateResourceAsObservable creates a new content resource or updates an existing one, then uploads
- * the file contents to that resource. If a resourceKey is provided, it updates the existing resource;
- * otherwise, it creates a new resource and uploads the file to the newly created resource.
- * 
- * @param resourceKey - Optional key of the existing resource to update; if not provided, a new resource is created
- * @param fileToUpload - The file or blob to upload
- * @param publicFlag - Whether the resource should be public
- * @param resourceType - The type of resource
- * @param tags - Array of tags for the resource
- * 
- * @returns Observable resolving to the ContentResource with uploaded file
- */
-export function createOrUpdateResourceAsObservable(resourceKey: string | null, fileToUpload: File | Blob, publicFlag: boolean, resourceType: string, tags: string[]): Observable<ContentResource> {
-    return from(createOrUpdateResource(resourceKey, fileToUpload, publicFlag, resourceType, tags));
-}
+    // Functions
+    getListData, 
+    getListDataAsObservable
+} from './lists';
 
 // ================================================================================
 // UTILITY FUNCTIONS
 // ================================================================================
 
-/**
- * sortObjectArray is a helper function that sorts the passed array in place by the given
- * attributes. Sorting by nested attributes in the form of a delimited attribute string are
- * supported (e.g., "attribute.nestedAttribute").
- * 
- * @param array - The array to sort
- * @param sort - Array of sort field specifications
- * @returns The sorted array
- */
-export function sortObjectArray<T>(array: Array<T>, sort: SortField[]): Array<T> {
-
-    return array.sort((a: T, b: T) => {
-
-        let comparison = 0;
-        for (let s of sort) {
-            let valueA = getValueFromObject(a, s.attributeId);
-            let valueB = getValueFromObject(b, s.attributeId);
-
-            comparison = compareValues(valueA, valueB, !!s.descending, !!s.caseInsensitive);
-            if (comparison !== 0) {
-                break;
-            }
-        }
-
-        return comparison;
-    });
-}
-
-/**
- * compareValues is a helper function that compares two values for sorting purposes. If the values
- * are strings, the comparison is case-insensitive. If the values are numbers, the comparison is
- * performed numerically. 
- * 
- * @param valueA - First value to compare
- * @param valueB - Second value to compare
- * @param descending - Whether to sort in descending order
- * @param caseInsensitive - Whether to perform case-insensitive comparison for strings
- * 
- * @returns Comparison result (-1, 0, or 1)
- */
-export function compareValues(valueA: any, valueB: any, descending: boolean, caseInsensitive: boolean): number {
-
-    if (caseInsensitive && (typeof valueA === 'string' || valueA instanceof String)) {
-
-        if (valueA && valueB) {
-            let comp = (<string>valueA).toLowerCase().localeCompare((<string>valueB).toLowerCase());
-            if (descending) {
-                comp = comp * -1;
-            }
-            return comp;
-        } else if (valueA && !valueB) {
-            return -1;
-        } else if (!valueA && valueB) {
-            return 1;                
-        } else {
-            return 0;
-        }
-    } else {
-
-        if (valueA < valueB) {
-            return (descending ? 1 : -1);
-        }
-        if (valueA > valueB) {
-            return (descending ? -1 : 1);
-        }
-    }
-    return 0;    
-}
-
-/**
- * getValueFromObject is a helper function that extracts a value from an object using a dot-notation
- * path. The path can include relationships. Relationship IDs may include a colon delimiter (e.g.,
- * "accountMember:ownerAccountMemberKey") to specify the key of the related object. This is useful
- * when an element has more than one relationship to the same object type. Otherwise, if only one
- * relationship to the same object type exists, the key may be specified without the relationship ID
- * (e.g., simply, "accountMember").
- * 
- * @param object - The object to extract value from
- * @param attribute - The attribute path (e.g., "user.address.city")
- * 
- * @returns The extracted value
- */
-export function getValueFromObject(object: any, attribute: string): any {
-
-    let components = attribute.split(".");
-
-    let value = object;
-    for (let component of components) {
-
-        if (value) {
-            // If a relationship specifies a key, it will be in the format [datatype]:[key]. Otherwise the colon
-            // delimiter will not be present.
-            // The related value will be in a field named after the key. For example: accountMember:ownerAccountMemberKey
-            // the related owner account member will be in a field called "ownerAccountMember".
-            let compSplit = component.split(":");
-            if (compSplit.length > 1) {
-                let keyField = compSplit[1];
-                value = value[keyField.replace("Key", "")];
-            } else {
-                value = value[component];
-            }
-        }
-    }
-
-    return value;
-}
-
-/**
- * debounceFn is a utility function that debounces a function call. It is used to prevent multiple
- * calls to the same function within a short period of time.
- * 
- * @param fn - The function to debounce
- * @param wait - The number of milliseconds to wait before calling the function
- * 
- * @returns The debounced function
- */
-export function debounceFn<T extends (...args: any[]) => void>(fn: T, wait = 200) {
-    let timeout: NodeJS.Timeout;
-    return (...args: Parameters<T>) => {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => fn(...args), wait);
-    };
-}
+export {
+    sortObjectArray,
+    compareValues,
+    getValueFromObject,
+    debounceFn
+} from './utilities';
