@@ -9,7 +9,15 @@
 
 /**
  * @module @halix/action-sdk/utilities
- * @description Utility functions for the Halix Platform action SDK.
+ * @description Utility functions for data manipulation and processing in the Halix Platform action SDK.
+ * This module provides helper functions for common data operations that are useful across various
+ * action handler scenarios.
+ * 
+ * Key features:
+ * - sortObjectArray: In-place sorting of object arrays with multi-field priority sorting
+ * - compareValues: Flexible value comparison with support for strings, numbers, and null values
+ * - getValueFromObject: Extract values from nested objects using dot-notation paths
+ * - debounceFn: Debounce function calls to prevent excessive execution
  */
 
 // ================================================================================

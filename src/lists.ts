@@ -9,7 +9,17 @@
 
 /**
  * @module @halix/action-sdk/lists
- * @description List data retrieval functions for the Halix Platform action SDK.
+ * @description List data retrieval functions for the Halix Platform action SDK. This module provides
+ * powerful list data querying capabilities with support for pagination, sorting, filtering, and
+ * binary search.
+ * 
+ * Key features:
+ * - Page-based pagination with configurable page size
+ * - Multi-field sorting with support for nested relationship paths
+ * - Advanced filtering with relationship traversal
+ * - Binary search for efficient item location in large sorted lists
+ * - Display field optimization to minimize payload size
+ * - Parent-child scoping for security and data isolation
  */
 
 import axios from 'axios';

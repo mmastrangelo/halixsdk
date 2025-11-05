@@ -10,9 +10,7 @@
 /**
  * @module @halix/action-sdk
  * @description Halix Platform action SDK for developing NodeJS Lambda-based actions on the Halix
- * platform. Defines a framework for accepting incoming events from the Halix platform, making API
- * requests to the Halix data service, and returning structured action responses back to the Halix
- * platform.
+ * platform. This is the main entry point that provides a unified interface for all SDK functionality.
  */
 
 // ================================================================================

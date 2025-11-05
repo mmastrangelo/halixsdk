@@ -9,7 +9,14 @@
 
 /**
  * @module @halix/action-sdk/data-crud
- * @description Data retrieval, save, and delete functions for the Halix Platform action SDK.
+ * @description Data CRUD operations for the Halix Platform action SDK. This module provides functions
+ * for creating, reading, updating, and deleting data objects through the Halix data service API.
+ * 
+ * Key features:
+ * - Retrieve single objects by element ID and key
+ * - Retrieve related objects with filtering and relationship fetching
+ * - Save related objects with validation control
+ * - Delete single or multiple related objects
  */
 
 import axios from 'axios';

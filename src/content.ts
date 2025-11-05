@@ -9,7 +9,16 @@
 
 /**
  * @module @halix/action-sdk/content
- * @description Content resource management functions for the Halix Platform action SDK.
+ * @description Content resource management functions for the Halix Platform action SDK. This module
+ * handles file uploads, content resources, and file storage operations.
+ * 
+ * Key features:
+ * - Create and retrieve content resources by key
+ * - Save content resource metadata to the database
+ * - Upload file contents (images, documents, etc.) to content resources
+ * - Combined create/upload operations for streamlined workflows
+ * 
+ * The createOrUpdateResource function combines all these steps for convenience.
  */
 
 import axios from 'axios';

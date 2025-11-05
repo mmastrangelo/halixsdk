@@ -9,7 +9,16 @@
 
 /**
  * @module @halix/action-sdk/sdk-general
- * @description Core SDK globals, initialization, and common types.
+ * @description Core SDK module providing global variables, initialization, and common types used
+ * across the entire SDK. This module includes:
+ * - Global variables for authentication, service configuration, and user context
+ * - initialize() function for setting up the SDK with incoming event data
+ * - Action response type definitions (ListActionResponse, FormTemplateActionResponse, etc.)
+ * - Response formatting helpers (prepareSuccessResponse, prepareErrorResponse)
+ * - Common interfaces (UserContext, IncomingEventBody, NotificationConfig)
+ * 
+ * This module should be initialized by calling initialize() before using any other SDK functions.
+ * The global variables are then available for use and are automatically used by other SDK functions.
  */
 
 import { Observable, of } from 'rxjs';
