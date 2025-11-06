@@ -11,6 +11,7 @@
  * @module @halix/action-sdk/data-crud
  * @description Data CRUD operations for the Halix Platform action SDK. This module provides functions
  * for creating, reading, updating, and deleting data objects through the Halix data service API.
+ * Note: for list-like displays, the `lists` module is preferred.
  * 
  * Key features:
  * - Retrieve one object a time
