@@ -23,6 +23,7 @@
 import axios from 'axios';
 import { from, Observable, lastValueFrom } from 'rxjs';
 import { sandboxKey, serviceAddress, getAuthToken, userContext } from './sdk-general';
+import { FilterExpression } from './filter-expressions';
 
 // ================================================================================
 // INTERFACES
@@ -111,8 +112,10 @@ export function getObjectAsObservable(dataElementId: string, key: string, fetche
  * objects will include the specified related objects as nested objects
  * 
  * @returns Promise resolving to an array of objects
+ * 
+ * @see {@link FilterExpression} for filter syntax and examples
  */
-export async function getRelatedObjects(parentElementId: string, parentKey: string, elementId: string, filter?: string, fetchedRelationships?: string[]): Promise<any[]> {
+export async function getRelatedObjects(parentElementId: string, parentKey: string, elementId: string, filter?: FilterExpression, fetchedRelationships?: string[]): Promise<any[]> {
 
     let params;
     if (filter || fetchedRelationships) {
@@ -163,8 +166,10 @@ export async function getRelatedObjects(parentElementId: string, parentKey: stri
  * objects will include the specified related objects as nested objects
  * 
  * @returns Observable resolving to an array of objects
+ * 
+ * @see {@link FilterExpression} for filter syntax and examples
  */
-export function getRelatedObjectsAsObservable(parentElementId: string, parentKey: string, elementId: string, filter?: string, fetchedRelationships?: string[]): Observable<any[]> {
+export function getRelatedObjectsAsObservable(parentElementId: string, parentKey: string, elementId: string, filter?: FilterExpression, fetchedRelationships?: string[]): Observable<any[]> {
     return from(getRelatedObjects(parentElementId, parentKey, elementId, filter, fetchedRelationships));
 }
 

@@ -24,6 +24,7 @@
 import axios from 'axios';
 import { from, Observable, lastValueFrom } from 'rxjs';
 import { sandboxKey, serviceAddress, getAuthToken } from './sdk-general';
+import { FilterExpression } from './filter-expressions';
 
 // ================================================================================
 // INTERFACES
@@ -108,9 +109,9 @@ export interface ListDataRequest {
 
     /** 
      * Filter expression to limit results. Evaluated within the parent key scope.
-     * Uses `dataexpr` format.
+     * @see {@link FilterExpression} for filter syntax and examples
      */
-    filter?: string;
+    filter?: FilterExpression;
 
     /** 
      * List of fields being displayed on the list. Only these fields are populated in
