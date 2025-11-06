@@ -9,7 +9,7 @@
 
 /**
  * @module @halix/action-sdk/lists
- * @description List data retrieval functions. Use this to efficiently retrieve objects
+ * @description List data retrieval and bulk operations. Use this to efficiently retrieve objects
  * from the database for display in list-like user interfaces. This is preferred over
  * the `data-crud` module when showing one page of data at a time.
  * 
@@ -19,6 +19,8 @@
  * - Sorting
  * - Filtering
  * - Search
+ * - Mass edit operations (bulk update multiple records)
+ * - Mass delete operations (bulk delete multiple records)
  */
 
 import axios from 'axios';
@@ -55,25 +57,14 @@ export interface DataSortField {
 }
 
 /**
- * ListDataRequest is an interface defining the properties of a list data request.
- * This request is used to retrieve list data from the Halix platform.
+ * BaseListDataRequest defines the core properties for list data requests.
+ * This is used to define the scope and filtering of records without pagination.
  */
-export interface ListDataRequest {
+export interface BaseListDataRequest {
     /** 
      * The ID of the root data element to retrieve.
      */
     dataElementId: string;
-
-    /** 
-     * The 1-based page number to retrieve. Works with pageSize.
-     * Alternatively, you can use traditional offset/limit pagination.
-     */
-    pageNumber?: number;
-
-    /** 
-     * The number of records per page. Works with pageNumber.
-     */
-    pageSize?: number;
 
     /** 
      * Sort configuration - list of sort fields in priority order.
@@ -127,6 +118,22 @@ export interface ListDataRequest {
 }
 
 /**
+ * PagedListDataRequest extends BaseListDataRequest with pagination properties.
+ * This is used for paginated list data retrieval.
+ */
+export interface PagedListDataRequest extends BaseListDataRequest {
+    /** 
+     * The 1-based page number to retrieve. Works with pageSize.
+     */
+    pageNumber?: number;
+
+    /** 
+     * The number of records per page. Works with pageNumber.
+     */
+    pageSize?: number;
+}
+
+/**
  * ListDataResponse wraps a data provider response to a list data request.
  */
 export interface ListDataResponse {
@@ -175,6 +182,77 @@ export interface ListDataOptions {
      * property will be set to the index of the first occurrence of the search value.
      */
     search?: ListDataSearchOptions;
+}
+
+/**
+ * MassEditValueType specifies how the value should be interpreted for mass edit operations.
+ * - 'literal': The value is a literal value to set
+ * - 'property': The value is a property ID to copy from
+ */
+export type MassEditValueType = 'literal' | 'property';
+
+/**
+ * MassEditRequest defines a request to update multiple records at once.
+ * 
+ * The keys array must contain object keys that are a subset of the records covered by
+ * the dataRequest. The dataRequest serves as a security scoping mechanism - only records
+ * that would be returned by the dataRequest (ignoring pagination) can be updated. This
+ * ensures efficient security checks without requiring individual permission checks per record.
+ */
+export interface MassEditRequest {
+    /** 
+     * Array of object keys to update. Must be a subset of records covered by dataRequest.
+     */
+    keys: string[];
+    /** 
+     * List data request defining the security scope of records that can be updated.
+     * Pagination fields (pageNumber, pageSize) are ignored.
+     */
+    dataRequest: BaseListDataRequest;
+    /** The data element ID of the objects to update */
+    dataElementId: string;
+    /** The property/attribute ID to update */
+    property: string;
+    /** How to interpret the value ('literal' or 'property') */
+    valueType: MassEditValueType;
+    /** The value to set (interpretation depends on valueType) */
+    value?: any;
+}
+
+/**
+ * MassDeleteRequest defines a request to delete multiple records at once.
+ * 
+ * The keys array must contain object keys that are a subset of the records covered by
+ * the dataRequest. The dataRequest serves as a security scoping mechanism - only records
+ * that would be returned by the dataRequest (ignoring pagination) can be deleted. This
+ * ensures efficient security checks without requiring individual permission checks per record.
+ */
+export interface MassDeleteRequest {
+    /** 
+     * Array of object keys to delete. Must be a subset of records covered by dataRequest.
+     */
+    keys: string[];
+    /** 
+     * List data request defining the security scope of records that can be deleted.
+     * Pagination fields are not applicable.
+     */
+    dataRequest: BaseListDataRequest;
+    /** The data element ID of the objects to delete */
+    dataElementId: string;
+    /** If true, delete all objects returned by dataRequest (ignores keys) */
+    emptyList?: boolean;
+}
+
+/**
+ * MassChangeResponse contains the results of a mass edit or mass delete operation.
+ */
+export interface MassChangeResponse {
+    /** Number of records attempted */
+    tried: number;
+    /** Number of records successfully updated/deleted */
+    succeeded: number;
+    /** Number of records that failed */
+    failed: number;
 }
 
 // ================================================================================
@@ -238,7 +316,7 @@ export interface ListDataOptions {
  * });
  * console.log('Selected row index:', searchData.selectedRow);
  */
-export async function getListData(request: ListDataRequest, options?: ListDataOptions): Promise<ListDataResponse> {
+export async function getListData(request: PagedListDataRequest, options?: ListDataOptions): Promise<ListDataResponse> {
 
     const isPublic = options?.isPublic ?? false;
     const hasSearch = !!options?.search;
@@ -313,7 +391,188 @@ export async function getListData(request: ListDataRequest, options?: ListDataOp
  *   console.log('Data:', response.data);
  * });
  */
-export function getListDataAsObservable(request: ListDataRequest, options?: ListDataOptions): Observable<ListDataResponse> {
+export function getListDataAsObservable(request: PagedListDataRequest, options?: ListDataOptions): Observable<ListDataResponse> {
     return from(getListData(request, options));
 }
 
+// ================================================================================
+// MASS EDIT AND DELETE FUNCTIONS
+// ================================================================================
+
+/**
+ * massEdit performs a bulk update operation on multiple records. This function allows you to
+ * update a specific property on multiple objects in a single request.
+ * 
+ * **Security Scoping**: The dataRequest serves as a security boundary. Only records that would
+ * be returned by the dataRequest can be updated. The keys array must reference records within
+ * this scope. This allows efficient security validation without checking each record individually.
+ * 
+ * The value can be set in two ways based on valueType:
+ * - 'literal': Set the property to a literal value
+ * - 'property': Copy the value from another property on the same object
+ * 
+ * @param request - The mass edit request specifying what to update and how
+ * 
+ * @returns Promise resolving to statistics about the operation
+ * 
+ * @example
+ * // Update the status of multiple orders to 'shipped'
+ * const result = await massEdit({
+ *   keys: ['order-123', 'order-456', 'order-789'],
+ *   dataRequest: {
+ *     dataElementId: 'order',
+ *     parentDataElementId: 'company',
+ *     parentKey: orgProxyKey
+ *   },
+ *   dataElementId: 'order',
+ *   property: 'status',
+ *   valueType: 'literal',
+ *   value: 'shipped'
+ * });
+ * console.log(`Updated ${result.succeeded} of ${result.tried} orders`);
+ * 
+ * @example
+ * // Copy shipping address to billing address for multiple customers
+ * const result = await massEdit({
+ *   keys: selectedCustomerKeys,
+ *   dataRequest: {
+ *     dataElementId: 'customer',
+ *     parentDataElementId: 'company',
+ *     parentKey: orgProxyKey
+ *   },
+ *   dataElementId: 'customer',
+ *   property: 'billingAddress',
+ *   valueType: 'property',
+ *   value: 'shippingAddress'
+ * });
+ */
+export async function massEdit(request: MassEditRequest): Promise<MassChangeResponse> {
+    const url = `${serviceAddress}/list/sandboxes/${sandboxKey}/massedit`;
+
+    // Build headers with authentication token
+    let authToken = await lastValueFrom(getAuthToken());
+    let headers: any = {
+        Authorization: `Bearer ${authToken}`
+    };
+
+    console.log("Sending POST request to " + url + " with token " + authToken);
+
+    // Make the API request
+    let response = await axios.post(url, request, { headers });
+
+    return response.data;
+}
+
+/**
+ * massEditAsObservable performs a bulk update operation on multiple records, returning an Observable.
+ * See massEdit for detailed documentation.
+ * 
+ * @param request - The mass edit request specifying what to update and how
+ * 
+ * @returns Observable resolving to statistics about the operation
+ * 
+ * @example
+ * massEditAsObservable({
+ *   keys: ['order-123', 'order-456'],
+ *   dataRequest: {
+ *     dataElementId: 'order',
+ *     parentDataElementId: 'company',
+ *     parentKey: orgProxyKey
+ *   },
+ *   dataElementId: 'order',
+ *   property: 'status',
+ *   valueType: 'literal',
+ *   value: 'shipped'
+ * }).subscribe(result => {
+ *   console.log(`Updated ${result.succeeded} of ${result.tried} orders`);
+ * });
+ */
+export function massEditAsObservable(request: MassEditRequest): Observable<MassChangeResponse> {
+    return from(massEdit(request));
+}
+
+/**
+ * massDelete performs a bulk delete operation on multiple records. This function allows you to
+ * soft-delete multiple objects in a single request.
+ * 
+ * **Security Scoping**: The dataRequest serves as a security boundary. Only records that would
+ * be returned by the dataRequest can be deleted. The keys array must reference records within
+ * this scope. This allows efficient security validation without checking each record individually.
+ * 
+ * If emptyList is set to true, all records returned by the dataRequest will be deleted,
+ * ignoring the keys array.
+ * 
+ * @param request - The mass delete request specifying what to delete
+ * 
+ * @returns Promise resolving to statistics about the operation
+ * 
+ * @example
+ * // Delete specific orders
+ * const result = await massDelete({
+ *   keys: ['order-123', 'order-456', 'order-789'],
+ *   dataRequest: {
+ *     dataElementId: 'order',
+ *     parentDataElementId: 'company',
+ *     parentKey: orgProxyKey,
+ *     filter: { field: 'status', operator: '==', value: 'cancelled' }
+ *   },
+ *   dataElementId: 'order'
+ * });
+ * console.log(`Deleted ${result.succeeded} of ${result.tried} orders`);
+ * 
+ * @example
+ * // Delete all records matching the filter
+ * const result = await massDelete({
+ *   keys: [],
+ *   dataRequest: {
+ *     dataElementId: 'tempRecord',
+ *     parentDataElementId: 'company',
+ *     parentKey: orgProxyKey,
+ *     filter: { field: 'createdDate', operator: '<', value: '2023-01-01' }
+ *   },
+ *   dataElementId: 'tempRecord',
+ *   emptyList: true
+ * });
+ * console.log(`Deleted ${result.succeeded} old records`);
+ */
+export async function massDelete(request: MassDeleteRequest): Promise<MassChangeResponse> {
+    const url = `${serviceAddress}/list/sandboxes/${sandboxKey}/massdelete`;
+
+    // Build headers with authentication token
+    let authToken = await lastValueFrom(getAuthToken());
+    let headers: any = {
+        Authorization: `Bearer ${authToken}`
+    };
+
+    console.log("Sending POST request to " + url + " with token " + authToken);
+
+    // Make the API request
+    let response = await axios.post(url, request, { headers });
+
+    return response.data;
+}
+
+/**
+ * massDeleteAsObservable performs a bulk delete operation on multiple records, returning an Observable.
+ * See massDelete for detailed documentation.
+ * 
+ * @param request - The mass delete request specifying what to delete
+ * 
+ * @returns Observable resolving to statistics about the operation
+ * 
+ * @example
+ * massDeleteAsObservable({
+ *   keys: ['order-123', 'order-456'],
+ *   dataRequest: {
+ *     dataElementId: 'order',
+ *     parentDataElementId: 'company',
+ *     parentKey: orgProxyKey
+ *   },
+ *   dataElementId: 'order'
+ * }).subscribe(result => {
+ *   console.log(`Deleted ${result.succeeded} of ${result.tried} orders`);
+ * });
+ */
+export function massDeleteAsObservable(request: MassDeleteRequest): Observable<MassChangeResponse> {
+    return from(massDelete(request));
+}

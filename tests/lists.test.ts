@@ -1,8 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import axios from 'axios';
-import { of } from 'rxjs';
 import * as sdk from '../src/index';
-import { getListData, getListDataAsObservable } from '../src/lists';
+import { 
+    getListData, 
+    getListDataAsObservable,
+    massEdit,
+    massEditAsObservable,
+    massDelete,
+    massDeleteAsObservable,
+    type ListDataResponse,
+    type MassChangeResponse
+} from '../src/lists';
 
 vi.mock('axios');
 const mockedAxios = vi.mocked(axios, true);
@@ -243,8 +251,379 @@ describe('getListData / getListDataAsObservable', () => {
         });
 
         expect(result).toEqual(mockResponse.data);
-        expect(result.total).toBe(1);
-        expect(result.data).toHaveLength(1);
+        expect((result as ListDataResponse).total).toBe(1);
+        expect((result as ListDataResponse).data).toHaveLength(1);
     });
 });
 
+describe('massEdit / massEditAsObservable', () => {
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        
+        // Initialize SDK with test data
+        sdk.initialize({
+            body: {
+                sandboxKey: 'testSandbox',
+                serviceAddress: 'https://test-service',
+                actionSubject: {},
+                userContext: {
+                    user: { objKey: 'u1' },
+                    userProxy: { objType: 'Customer' },
+                    orgProxy: { objType: 'Business' },
+                    orgProxyKey: 'op1',
+                    orgKey: 'org1',
+                    userProxyKey: 'up1'
+                },
+                params: {},
+                authToken: 'TEST_TOKEN'
+            }
+        });
+    });
+
+    it('calls massedit endpoint with literal value', async () => {
+        const mockResponse = { 
+            data: { 
+                tried: 3,
+                succeeded: 3,
+                failed: 0
+            } 
+        };
+        mockedAxios.post.mockResolvedValue(mockResponse);
+
+        const request = {
+            keys: ['order-123', 'order-456', 'order-789'],
+            dataRequest: {
+                dataElementId: 'order',
+                parentDataElementId: 'company',
+                parentKey: 'org1'
+            },
+            dataElementId: 'order',
+            property: 'status',
+            valueType: 'literal' as const,
+            value: 'shipped'
+        };
+
+        const result = await massEdit(request);
+
+        expect(mockedAxios.post).toHaveBeenCalledWith(
+            'https://test-service/list/sandboxes/testSandbox/massedit',
+            request,
+            expect.objectContaining({
+                headers: expect.objectContaining({
+                    Authorization: 'Bearer TEST_TOKEN'
+                })
+            })
+        );
+        expect(result).toEqual(mockResponse.data);
+        expect(result.tried).toBe(3);
+        expect(result.succeeded).toBe(3);
+        expect(result.failed).toBe(0);
+    });
+
+    it('calls massedit endpoint with property value', async () => {
+        const mockResponse = { 
+            data: { 
+                tried: 5,
+                succeeded: 4,
+                failed: 1
+            } 
+        };
+        mockedAxios.post.mockResolvedValue(mockResponse);
+
+        const request = {
+            keys: ['cust-1', 'cust-2', 'cust-3', 'cust-4', 'cust-5'],
+            dataRequest: {
+                dataElementId: 'customer',
+                parentDataElementId: 'company',
+                parentKey: 'org1',
+                filter: 'status == "active"'
+            },
+            dataElementId: 'customer',
+            property: 'billingAddress',
+            valueType: 'property' as const,
+            value: 'shippingAddress'
+        };
+
+        const result = await massEdit(request);
+
+        expect(mockedAxios.post).toHaveBeenCalledWith(
+            'https://test-service/list/sandboxes/testSandbox/massedit',
+            request,
+            expect.objectContaining({
+                headers: expect.objectContaining({
+                    Authorization: 'Bearer TEST_TOKEN'
+                })
+            })
+        );
+        expect(result.tried).toBe(5);
+        expect(result.succeeded).toBe(4);
+        expect(result.failed).toBe(1);
+    });
+
+    it('calls massedit with sort and filter in dataRequest', async () => {
+        const mockResponse = { 
+            data: { 
+                tried: 10,
+                succeeded: 10,
+                failed: 0
+            } 
+        };
+        mockedAxios.post.mockResolvedValue(mockResponse);
+
+        const request = {
+            keys: ['inv-1', 'inv-2'],
+            dataRequest: {
+                dataElementId: 'invoice',
+                parentDataElementId: 'company',
+                parentKey: 'org1',
+                sort: [{ attributeId: 'invoiceDate', descending: true }],
+                filter: 'status == "pending"'
+            },
+            dataElementId: 'invoice',
+            property: 'dueDate',
+            valueType: 'literal' as const,
+            value: '2024-12-31'
+        };
+
+        const result = await massEdit(request);
+
+        expect(mockedAxios.post).toHaveBeenCalledWith(
+            'https://test-service/list/sandboxes/testSandbox/massedit',
+            expect.objectContaining({
+                dataRequest: expect.objectContaining({
+                    sort: [{ attributeId: 'invoiceDate', descending: true }],
+                    filter: 'status == "pending"'
+                })
+            }),
+            expect.any(Object)
+        );
+        expect(result.succeeded).toBe(10);
+    });
+
+    it('observable wrapper returns the same data', async () => {
+        const mockResponse = { 
+            data: { 
+                tried: 2,
+                succeeded: 2,
+                failed: 0
+            } 
+        };
+        mockedAxios.post.mockResolvedValue(mockResponse);
+
+        const request = {
+            keys: ['rec-1', 'rec-2'],
+            dataRequest: {
+                dataElementId: 'record',
+                parentDataElementId: 'company',
+                parentKey: 'org1'
+            },
+            dataElementId: 'record',
+            property: 'flag',
+            valueType: 'literal' as const,
+            value: true
+        };
+
+        const result = await new Promise((resolve) => {
+            massEditAsObservable(request).subscribe(data => {
+                resolve(data);
+            });
+        });
+
+        expect(result).toEqual(mockResponse.data);
+        expect((result as MassChangeResponse).tried).toBe(2);
+        expect((result as MassChangeResponse).succeeded).toBe(2);
+    });
+});
+
+describe('massDelete / massDeleteAsObservable', () => {
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        
+        // Initialize SDK with test data
+        sdk.initialize({
+            body: {
+                sandboxKey: 'testSandbox',
+                serviceAddress: 'https://test-service',
+                actionSubject: {},
+                userContext: {
+                    user: { objKey: 'u1' },
+                    userProxy: { objType: 'Customer' },
+                    orgProxy: { objType: 'Business' },
+                    orgProxyKey: 'op1',
+                    orgKey: 'org1',
+                    userProxyKey: 'up1'
+                },
+                params: {},
+                authToken: 'TEST_TOKEN'
+            }
+        });
+    });
+
+    it('calls massdelete endpoint with specific keys', async () => {
+        const mockResponse = { 
+            data: { 
+                tried: 3,
+                succeeded: 3,
+                failed: 0
+            } 
+        };
+        mockedAxios.post.mockResolvedValue(mockResponse);
+
+        const request = {
+            keys: ['order-123', 'order-456', 'order-789'],
+            dataRequest: {
+                dataElementId: 'order',
+                parentDataElementId: 'company',
+                parentKey: 'org1',
+                filter: 'status == "cancelled"'
+            },
+            dataElementId: 'order'
+        };
+
+        const result = await massDelete(request);
+
+        expect(mockedAxios.post).toHaveBeenCalledWith(
+            'https://test-service/list/sandboxes/testSandbox/massdelete',
+            request,
+            expect.objectContaining({
+                headers: expect.objectContaining({
+                    Authorization: 'Bearer TEST_TOKEN'
+                })
+            })
+        );
+        expect(result).toEqual(mockResponse.data);
+        expect(result.tried).toBe(3);
+        expect(result.succeeded).toBe(3);
+        expect(result.failed).toBe(0);
+    });
+
+    it('calls massdelete with emptyList flag to delete all matching records', async () => {
+        const mockResponse = { 
+            data: { 
+                tried: 15,
+                succeeded: 15,
+                failed: 0
+            } 
+        };
+        mockedAxios.post.mockResolvedValue(mockResponse);
+
+        const request = {
+            keys: [],
+            dataRequest: {
+                dataElementId: 'tempRecord',
+                parentDataElementId: 'company',
+                parentKey: 'org1',
+                filter: 'createdDate < "2023-01-01"'
+            },
+            dataElementId: 'tempRecord',
+            emptyList: true
+        };
+
+        const result = await massDelete(request);
+
+        expect(mockedAxios.post).toHaveBeenCalledWith(
+            'https://test-service/list/sandboxes/testSandbox/massdelete',
+            expect.objectContaining({
+                emptyList: true
+            }),
+            expect.any(Object)
+        );
+        expect(result.tried).toBe(15);
+        expect(result.succeeded).toBe(15);
+    });
+
+    it('handles partial failures correctly', async () => {
+        const mockResponse = { 
+            data: { 
+                tried: 10,
+                succeeded: 7,
+                failed: 3
+            } 
+        };
+        mockedAxios.post.mockResolvedValue(mockResponse);
+
+        const request = {
+            keys: Array.from({ length: 10 }, (_, i) => `rec-${i + 1}`),
+            dataRequest: {
+                dataElementId: 'record',
+                parentDataElementId: 'company',
+                parentKey: 'org1'
+            },
+            dataElementId: 'record'
+        };
+
+        const result = await massDelete(request);
+
+        expect(result.tried).toBe(10);
+        expect(result.succeeded).toBe(7);
+        expect(result.failed).toBe(3);
+    });
+
+    it('calls massdelete with displayFields in dataRequest', async () => {
+        const mockResponse = { 
+            data: { 
+                tried: 5,
+                succeeded: 5,
+                failed: 0
+            } 
+        };
+        mockedAxios.post.mockResolvedValue(mockResponse);
+
+        const request = {
+            keys: ['item-1', 'item-2'],
+            dataRequest: {
+                dataElementId: 'item',
+                parentDataElementId: 'category',
+                parentKey: 'cat1',
+                displayFields: ['objKey', 'name']
+            },
+            dataElementId: 'item'
+        };
+
+        const result = await massDelete(request);
+
+        expect(mockedAxios.post).toHaveBeenCalledWith(
+            'https://test-service/list/sandboxes/testSandbox/massdelete',
+            expect.objectContaining({
+                dataRequest: expect.objectContaining({
+                    displayFields: ['objKey', 'name']
+                })
+            }),
+            expect.any(Object)
+        );
+        expect(result.succeeded).toBe(5);
+    });
+
+    it('observable wrapper returns the same data', async () => {
+        const mockResponse = { 
+            data: { 
+                tried: 4,
+                succeeded: 4,
+                failed: 0
+            } 
+        };
+        mockedAxios.post.mockResolvedValue(mockResponse);
+
+        const request = {
+            keys: ['rec-1', 'rec-2', 'rec-3', 'rec-4'],
+            dataRequest: {
+                dataElementId: 'record',
+                parentDataElementId: 'company',
+                parentKey: 'org1'
+            },
+            dataElementId: 'record'
+        };
+
+        const result = await new Promise((resolve) => {
+            massDeleteAsObservable(request).subscribe(data => {
+                resolve(data);
+            });
+        });
+
+        expect(result).toEqual(mockResponse.data);
+        expect((result as MassChangeResponse).tried).toBe(4);
+        expect((result as MassChangeResponse).succeeded).toBe(4);
+    });
+});

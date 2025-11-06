@@ -127,14 +127,23 @@ export {
     // Interfaces
     type SortField,
     type DataSortField,
-    type ListDataRequest,
+    type BaseListDataRequest,
+    type PagedListDataRequest,
     type ListDataResponse,
     type ListDataOptions,
     type ListDataSearchOptions,
+    type MassEditValueType,
+    type MassEditRequest,
+    type MassDeleteRequest,
+    type MassChangeResponse,
     
     // Functions
     getListData, 
-    getListDataAsObservable
+    getListDataAsObservable,
+    massEdit,
+    massEditAsObservable,
+    massDelete,
+    massDeleteAsObservable
 } from './lists';
 
 // ================================================================================
