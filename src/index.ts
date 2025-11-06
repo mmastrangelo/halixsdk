@@ -96,6 +96,22 @@ export {
 } from './content';
 
 // ================================================================================
+// MESSAGING FUNCTIONS
+// ================================================================================
+
+export {
+    // Messaging Enums
+    MessageMethod,
+    
+    // Messaging Interfaces
+    type MessageRequest,
+    
+    // Messaging Functions
+    sendMessage,
+    sendMessageAsObservable
+} from './messaging';
+
+// ================================================================================
 // FILTER EXPRESSIONS
 // ================================================================================
 
