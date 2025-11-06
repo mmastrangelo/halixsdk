@@ -9,15 +9,16 @@
 
 /**
  * @module @halix/action-sdk/lists
- * @description List data retrieval functions. Use this to retrieve list-ready data for list displays.
+ * @description List data retrieval functions. Use this to efficiently retrieve objects
+ * from the database for display in list-like user interfaces. This is preferred over
+ * the `data-crud` module when showing one page of data at a time.
  * 
  * Key features:
- * - Pagination with configurable page size
- * - Multi-field sorting with support for nested relationship paths
- * - Advanced filtering with relationship traversal
- * - Binary search for efficient item location in large sorted lists
- * - Display field optimization to minimize payload size
- * - Parent-child scoping for security and data isolation
+ * - Efficient retrieval of one page of data at a time
+ * - Pagination
+ * - Sorting
+ * - Filtering
+ * - Search
  */
 
 import axios from 'axios';

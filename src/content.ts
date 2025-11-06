@@ -13,12 +13,8 @@
  * handles file uploads, content resources, and file storage operations.
  * 
  * Key features:
- * - Create and retrieve content resources by key
- * - Save content resource metadata to the database
- * - Upload file contents (images, documents, etc.) to content resources
- * - Combined create/upload operations for streamlined workflows
- * 
- * The createOrUpdateResource function combines all these steps for convenience.
+ * - Retrieve content resources (images, documents, etc.)
+ * - Upload/save content resources (images, documents, etc.)
  */
 
 import axios from 'axios';

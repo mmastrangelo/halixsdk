@@ -13,10 +13,10 @@
  * for creating, reading, updating, and deleting data objects through the Halix data service API.
  * 
  * Key features:
- * - Retrieve single objects by element ID and key
- * - Retrieve related objects with filtering and relationship fetching
- * - Save related objects with validation control
- * - Delete single or multiple related objects
+ * - Retrieve one object a time
+ * - Retrieve all objects related to a parent object
+ * - Save a single object
+ * - Delete a single or multiple objects
  */
 
 import axios from 'axios';
