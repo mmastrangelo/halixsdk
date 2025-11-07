@@ -45,7 +45,7 @@ describe('sendMessage / sendMessageAsObservable', () => {
         });
 
         expect(mockedAxios.post).toHaveBeenCalledWith(
-            'https://test-service/notification/sandboxes/testSandbox/business/biz-123/sendMessage',
+            'https://test-service/notification/sandboxes/testSandbox/sendMessage/business/biz-123',
             expect.objectContaining({
                 recipientGroups: [
                     {
@@ -76,7 +76,7 @@ describe('sendMessage / sendMessageAsObservable', () => {
         });
 
         expect(mockedAxios.post).toHaveBeenCalledWith(
-            'https://test-service/notification/sandboxes/testSandbox/business/biz-123/sendMessage',
+            'https://test-service/notification/sandboxes/testSandbox/sendMessage/business/biz-123',
             expect.objectContaining({
                 recipientGroups: [],
                 sentAs: 'email',
@@ -101,7 +101,7 @@ describe('sendMessage / sendMessageAsObservable', () => {
         });
 
         expect(mockedAxios.post).toHaveBeenCalledWith(
-            'https://test-service/notification/sandboxes/testSandbox/business/biz-123/sendMessage',
+            'https://test-service/notification/sandboxes/testSandbox/sendMessage/business/biz-123',
             expect.objectContaining({
                 recipientGroups: [
                     {
@@ -239,7 +239,7 @@ describe('sendMessage / sendMessageAsObservable', () => {
         });
 
         expect(mockedAxios.post).toHaveBeenCalledWith(
-            'https://test-service/notification/sandboxes/testSandbox/school/school-456/sendMessage',
+            'https://test-service/notification/sandboxes/testSandbox/sendMessage/school/school-456',
             expect.any(Object),
             expect.any(Object)
         );

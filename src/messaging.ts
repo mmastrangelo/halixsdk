@@ -163,7 +163,7 @@ export async function sendMessage(orgProxyElementId: string, orgProxyKey: string
         additionalEmails: message.directEmailAddresses
     };
 
-    let url = `${serviceAddress}/notification/sandboxes/${sandboxKey}/${orgProxyElementId}/${orgProxyKey}/sendMessage`;
+    let url = `${serviceAddress}/notification/sandboxes/${sandboxKey}/sendMessage/${orgProxyElementId}/${orgProxyKey}`;
 
     let authToken = await lastValueFrom(getAuthToken());
 
