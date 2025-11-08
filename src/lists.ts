@@ -351,9 +351,14 @@ export async function getListData(request: PagedListDataRequest, options?: ListD
     // Build headers with authentication token for non-public endpoints
     let headers: any = {};
     if (!isPublic) {
+        if (!getAuthToken) {
+            const errorMessage = 'SDK not initialized.';
+            console.error(errorMessage);
+            throw new Error(errorMessage);
+        }
         let authToken = await lastValueFrom(getAuthToken());
         headers.Authorization = `Bearer ${authToken}`;
-        
+
         console.log("Sending POST request to " + url + " with token " + authToken);
     } else {
         console.log("Sending POST request to " + url + " (public endpoint)");
@@ -447,6 +452,11 @@ export function getListDataAsObservable(request: PagedListDataRequest, options?:
  * });
  */
 export async function massEdit(request: MassEditRequest): Promise<MassChangeResponse> {
+    if (!getAuthToken) {
+        const errorMessage = 'SDK not initialized.';
+        console.error(errorMessage);
+        throw new Error(errorMessage);
+    }
     const url = `${serviceAddress}/list/sandboxes/${sandboxKey}/massedit`;
 
     // Build headers with authentication token
@@ -536,6 +546,11 @@ export function massEditAsObservable(request: MassEditRequest): Observable<MassC
  * console.log(`Deleted ${result.succeeded} old records`);
  */
 export async function massDelete(request: MassDeleteRequest): Promise<MassChangeResponse> {
+    if (!getAuthToken) {
+        const errorMessage = 'SDK not initialized.';
+        console.error(errorMessage);
+        throw new Error(errorMessage);
+    }
     const url = `${serviceAddress}/list/sandboxes/${sandboxKey}/massdelete`;
 
     // Build headers with authentication token

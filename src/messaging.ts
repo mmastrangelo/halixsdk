@@ -163,6 +163,12 @@ export async function sendMessage(orgProxyElementId: string, orgProxyKey: string
         additionalEmails: message.directEmailAddresses
     };
 
+    if (!getAuthToken) {
+        const errorMessage = 'SDK not initialized.';
+        console.error(errorMessage);
+        throw new Error(errorMessage);
+    }
+
     let url = `${serviceAddress}/notification/sandboxes/${sandboxKey}/sendMessage/${orgProxyElementId}/${orgProxyKey}`;
 
     let authToken = await lastValueFrom(getAuthToken());

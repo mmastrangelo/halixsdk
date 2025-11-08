@@ -51,6 +51,11 @@ export interface SaveOptions {
  * @returns Promise resolving to the object data
  */
 export async function getObject(dataElementId: string, key: string, fetchedRelationships?: string[]) {
+    if (!getAuthToken) {
+        const errorMessage = 'SDK not initialized.';
+        console.error(errorMessage);
+        throw new Error(errorMessage);
+    }
 
     let params;
     if (fetchedRelationships) {
@@ -116,6 +121,11 @@ export function getObjectAsObservable(dataElementId: string, key: string, fetche
  * @see {@link FilterExpression} for filter syntax and examples
  */
 export async function getRelatedObjects(parentElementId: string, parentKey: string, elementId: string, filter?: FilterExpression, fetchedRelationships?: string[]): Promise<any[]> {
+    if (!getAuthToken) {
+        const errorMessage = 'SDK not initialized.';
+        console.error(errorMessage);
+        throw new Error(errorMessage);
+    }
 
     let params;
     if (filter || fetchedRelationships) {
@@ -194,6 +204,11 @@ export function getRelatedObjectsAsObservable(parentElementId: string, parentKey
  * calculated values
  */
 export async function saveRelatedObject(parentElementId: string, parentKey: string, elementId: string, objectToSave: string, opts?: SaveOptions): Promise<any> {
+    if (!getAuthToken) {
+        const errorMessage = 'SDK not initialized.';
+        console.error(errorMessage);
+        throw new Error(errorMessage);
+    }
 
     let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${parentElementId}/${parentKey}/${elementId}`;
 
@@ -254,6 +269,12 @@ export async function deleteRelatedObject(parentElementId: string, parentKey: st
         throw new Error("userContext is required but not available; check that the initialize function has been called");
     }
 
+    if (!getAuthToken) {
+        const errorMessage = 'SDK not initialized.';
+        console.error(errorMessage);
+        throw new Error(errorMessage);
+    }
+
     let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${parentElementId}/${parentKey}/${childElementId}/${childKey}`;
     let authToken = await lastValueFrom(getAuthToken());
 
@@ -294,6 +315,12 @@ export async function deleteRelatedObjects(parentElementId: string, parentKey: s
 
     if (!userContext) {
         throw new Error("userContext is required but not available; check that the initialize function has been called");
+    }
+
+    if (!getAuthToken) {
+        const errorMessage = 'SDK not initialized.';
+        console.error(errorMessage);
+        throw new Error(errorMessage);
     }
 
     let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${parentElementId}/${parentKey}/${childElementId}`;
