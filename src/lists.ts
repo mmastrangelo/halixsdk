@@ -15,6 +15,7 @@
  * 
  * Key features:
  * - Efficient retrieval of one page of data at a time
+ * - Supports related object retrieval
  * - Pagination
  * - Sorting
  * - Filtering
@@ -100,7 +101,7 @@ export interface BaseListDataRequest {
 
     /** 
      * Filter expression to limit results. Evaluated within the parent key scope.
-     * @see {@link FilterExpression} for filter syntax and examples
+     * @see the filter-expressions module for filter syntax and examples
      */
     filter?: FilterExpression;
 
@@ -524,7 +525,7 @@ export function massEditAsObservable(request: MassEditRequest): Observable<MassC
  *     dataElementId: 'order',
  *     parentDataElementId: 'company',
  *     parentKey: orgProxyKey,
- *     filter: { field: 'status', operator: '==', value: 'cancelled' }
+ *     filter: "status = 'cancelled'"
  *   },
  *   dataElementId: 'order'
  * });
@@ -538,7 +539,7 @@ export function massEditAsObservable(request: MassEditRequest): Observable<MassC
  *     dataElementId: 'tempRecord',
  *     parentDataElementId: 'company',
  *     parentKey: orgProxyKey,
- *     filter: { field: 'createdDate', operator: '<', value: '2023-01-01' }
+ *     filter: "createdDate < '2023-01-01'"
  *   },
  *   dataElementId: 'tempRecord',
  *   emptyList: true
