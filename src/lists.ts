@@ -261,24 +261,13 @@ export interface MassChangeResponse {
 // ================================================================================
 
 /**
- * getListData retrieves list data from the Halix platform. This function can operate in four
- * different modes based on the provided options:
+ * Retrieves paginated list data. Supports authenticated/public access, filtering, sorting, and binary search.
  * 
- * 1. Authenticated list data retrieval (default)
- * 2. Public list data retrieval (when isPublic is true)
- * 3. Authenticated list data with search (when search options are provided)
- * 4. Public list data with search (when both isPublic and search options are provided)
- * 
- * The search functionality uses binary search to efficiently locate items in a sorted list by
- * a specific attribute value.
- * 
- * @param request - The list data request containing list configuration and parameters
- * @param options - Optional configuration for the request
- * 
- * @returns Promise resolving to the list data response
+ * @param request - List configuration including dataElementId, parentDataElementId, parentKey, pagination, sort, filter
+ * @param options - Optional: isPublic, bypassTotal, search
+ * @returns Promise<ListDataResponse> with data array, total count, pageNumber
  * 
  * @example
- * // Basic authenticated list data retrieval
  * const listData = await getListData({
  *   dataElementId: 'customer',
  *   parentDataElementId: 'company',
@@ -287,35 +276,6 @@ export interface MassChangeResponse {
  *   pageSize: 50,
  *   displayFields: ['firstName', 'lastName', 'email']
  * });
- * console.log('Total customers:', listData.total);
- * console.log('Page:', listData.pageNumber);
- * console.log('Data:', listData.data);
- * 
- * @example
- * // Public list data retrieval without authentication
- * const publicData = await getListData({
- *   dataElementId: 'product',
- *   parentDataElementId: 'catalog',
- *   parentKey: orgProxyKey,
- *   pageNumber: 1,
- *   pageSize: 20
- * }, { isPublic: true });
- * 
- * @example
- * // List data retrieval with binary search
- * const searchData = await getListData({
- *   dataElementId: 'purchases',
- *   parentDataElementId: 'customer',
- *   parentKey: userProxyKey,
- *   sort: [{ attributeId: 'invoiceNumber', descending: false }]
- * }, {
- *   search: {
- *     attributeId: 'invoiceNumber',
- *     value: 'INV-123456',
- *     total: 1000
- *   }
- * });
- * console.log('Selected row index:', searchData.selectedRow);
  */
 export async function getListData(request: PagedListDataRequest, options?: ListDataOptions): Promise<ListDataResponse> {
 
@@ -375,27 +335,11 @@ export async function getListData(request: PagedListDataRequest, options?: ListD
 }
 
 /**
- * getListDataAsObservable retrieves list data from the Halix platform as an Observable. This
- * function operates in the same four modes as getListData.
- * 
- * @param request - The list data request containing list configuration and parameters
- * @param options - Optional configuration for the request
- * 
- * @returns Observable resolving to the list data response
+ * Observable version of getListData. See getListData for details.
  * 
  * @example
- * // Basic authenticated list data retrieval as Observable
- * getListDataAsObservable({
- *   dataElementId: 'customer',
- *   parentDataElementId: 'company',
- *   parentKey: userContext.orgProxyKey,
- *   pageNumber: 1,
- *   pageSize: 50
- * }).subscribe(response => {
- *   console.log('Total customers:', response.total);
- *   console.log('Page:', response.pageNumber);
- *   console.log('Data:', response.data);
- * });
+ * getListDataAsObservable({ dataElementId: 'customer', parentDataElementId: 'company', parentKey: orgProxyKey })
+ *   .subscribe(response => console.log(response.data));
  */
 export function getListDataAsObservable(request: PagedListDataRequest, options?: ListDataOptions): Observable<ListDataResponse> {
     return from(getListData(request, options));
@@ -406,50 +350,20 @@ export function getListDataAsObservable(request: PagedListDataRequest, options?:
 // ================================================================================
 
 /**
- * massEdit performs a bulk update operation on multiple records. This function allows you to
- * update a specific property on multiple objects in a single request.
+ * Bulk update multiple records. The dataRequest defines security scope; only records within that scope can be updated.
+ * Use valueType 'literal' to set a value, or 'property' to copy from another field.
  * 
- * **Security Scoping**: The dataRequest serves as a security boundary. Only records that would
- * be returned by the dataRequest can be updated. The keys array must reference records within
- * this scope. This allows efficient security validation without checking each record individually.
- * 
- * The value can be set in two ways based on valueType:
- * - 'literal': Set the property to a literal value
- * - 'property': Copy the value from another property on the same object
- * 
- * @param request - The mass edit request specifying what to update and how
- * 
- * @returns Promise resolving to statistics about the operation
+ * @param request - keys[], dataRequest (scope), dataElementId, property, valueType, value
+ * @returns Promise<MassChangeResponse> with tried/succeeded/failed counts
  * 
  * @example
- * // Update the status of multiple orders to 'shipped'
  * const result = await massEdit({
- *   keys: ['order-123', 'order-456', 'order-789'],
- *   dataRequest: {
- *     dataElementId: 'order',
- *     parentDataElementId: 'company',
- *     parentKey: orgProxyKey
- *   },
+ *   keys: ['order-123', 'order-456'],
+ *   dataRequest: { dataElementId: 'order', parentDataElementId: 'company', parentKey: orgProxyKey },
  *   dataElementId: 'order',
  *   property: 'status',
  *   valueType: 'literal',
  *   value: 'shipped'
- * });
- * console.log(`Updated ${result.succeeded} of ${result.tried} orders`);
- * 
- * @example
- * // Copy shipping address to billing address for multiple customers
- * const result = await massEdit({
- *   keys: selectedCustomerKeys,
- *   dataRequest: {
- *     dataElementId: 'customer',
- *     parentDataElementId: 'company',
- *     parentKey: orgProxyKey
- *   },
- *   dataElementId: 'customer',
- *   property: 'billingAddress',
- *   valueType: 'property',
- *   value: 'shippingAddress'
  * });
  */
 export async function massEdit(request: MassEditRequest): Promise<MassChangeResponse> {
@@ -475,76 +389,25 @@ export async function massEdit(request: MassEditRequest): Promise<MassChangeResp
 }
 
 /**
- * massEditAsObservable performs a bulk update operation on multiple records, returning an Observable.
- * See massEdit for detailed documentation.
- * 
- * @param request - The mass edit request specifying what to update and how
- * 
- * @returns Observable resolving to statistics about the operation
- * 
- * @example
- * massEditAsObservable({
- *   keys: ['order-123', 'order-456'],
- *   dataRequest: {
- *     dataElementId: 'order',
- *     parentDataElementId: 'company',
- *     parentKey: orgProxyKey
- *   },
- *   dataElementId: 'order',
- *   property: 'status',
- *   valueType: 'literal',
- *   value: 'shipped'
- * }).subscribe(result => {
- *   console.log(`Updated ${result.succeeded} of ${result.tried} orders`);
- * });
+ * Observable version of massEdit. See massEdit for details.
  */
 export function massEditAsObservable(request: MassEditRequest): Observable<MassChangeResponse> {
     return from(massEdit(request));
 }
 
 /**
- * massDelete performs a bulk delete operation on multiple records. This function allows you to
- * soft-delete multiple objects in a single request.
+ * Bulk soft-delete multiple records. The dataRequest defines security scope; only records within that scope can be deleted.
+ * Set emptyList: true to delete all records matching dataRequest (ignores keys array).
  * 
- * **Security Scoping**: The dataRequest serves as a security boundary. Only records that would
- * be returned by the dataRequest can be deleted. The keys array must reference records within
- * this scope. This allows efficient security validation without checking each record individually.
- * 
- * If emptyList is set to true, all records returned by the dataRequest will be deleted,
- * ignoring the keys array.
- * 
- * @param request - The mass delete request specifying what to delete
- * 
- * @returns Promise resolving to statistics about the operation
+ * @param request - keys[], dataRequest (scope), dataElementId, emptyList?
+ * @returns Promise<MassChangeResponse> with tried/succeeded/failed counts
  * 
  * @example
- * // Delete specific orders
  * const result = await massDelete({
- *   keys: ['order-123', 'order-456', 'order-789'],
- *   dataRequest: {
- *     dataElementId: 'order',
- *     parentDataElementId: 'company',
- *     parentKey: orgProxyKey,
- *     filter: "status = 'cancelled'"
- *   },
+ *   keys: ['order-123', 'order-456'],
+ *   dataRequest: { dataElementId: 'order', parentDataElementId: 'company', parentKey: orgProxyKey },
  *   dataElementId: 'order'
  * });
- * console.log(`Deleted ${result.succeeded} of ${result.tried} orders`);
- * 
- * @example
- * // Delete all records matching the filter
- * const result = await massDelete({
- *   keys: [],
- *   dataRequest: {
- *     dataElementId: 'tempRecord',
- *     parentDataElementId: 'company',
- *     parentKey: orgProxyKey,
- *     filter: "createdDate < '2023-01-01'"
- *   },
- *   dataElementId: 'tempRecord',
- *   emptyList: true
- * });
- * console.log(`Deleted ${result.succeeded} old records`);
  */
 export async function massDelete(request: MassDeleteRequest): Promise<MassChangeResponse> {
     if (!getAuthToken) {
@@ -569,25 +432,7 @@ export async function massDelete(request: MassDeleteRequest): Promise<MassChange
 }
 
 /**
- * massDeleteAsObservable performs a bulk delete operation on multiple records, returning an Observable.
- * See massDelete for detailed documentation.
- * 
- * @param request - The mass delete request specifying what to delete
- * 
- * @returns Observable resolving to statistics about the operation
- * 
- * @example
- * massDeleteAsObservable({
- *   keys: ['order-123', 'order-456'],
- *   dataRequest: {
- *     dataElementId: 'order',
- *     parentDataElementId: 'company',
- *     parentKey: orgProxyKey
- *   },
- *   dataElementId: 'order'
- * }).subscribe(result => {
- *   console.log(`Deleted ${result.succeeded} of ${result.tried} orders`);
- * });
+ * Observable version of massDelete. See massDelete for details.
  */
 export function massDeleteAsObservable(request: MassDeleteRequest): Observable<MassChangeResponse> {
     return from(massDelete(request));

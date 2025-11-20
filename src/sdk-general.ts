@@ -28,66 +28,44 @@ import { Observable, of } from 'rxjs';
 // ================================================================================
 
 /**
- * authToken contains the authentication token that the action handler can use to make API requests
- * to Halix web services. This value is set upon calling the initialize function with incoming event
- * data.
+ * Authentication token for API requests. Set by initialize().
  */
 export let getAuthToken: () => Observable<string>;
 
 /**
- * sandboxKey contains the sandbox key identifier; identifies the sandbox that the action handler is
- * running in. The sandbox identifies the current solution. This value is set upon calling the
- * initialize function with incoming event data.
+ * Sandbox key identifier for the current solution. Set by initialize().
  */
 export let sandboxKey: string;
 
 /**
- * serviceAddress contains the URL of the Halix service that the action handler can use to make API
- * requests to. This value is set upon calling the initialize function with incoming event data.
+ * Halix service URL for API requests. Set by initialize().
  */
 export let serviceAddress: string;
 
 /**
- * actionSubject contains the identifier of the subject of the action. The subject is the object
- * that the action is being performed on. The action subject's contents will differ depending on the
- * context in which the action is being executed. This value is set upon calling the initialize
- * function with incoming event data.
- * - for formTemplateActions, the action subject is the data being edited on the form
- * - for pageTemplateActions, the action subject is record containing the context variables and
- *   their corresponding values on the page
- * - for objectSaveActions, the action subject is the object being saved
- * - for calculatedFieldActions, the action subject is the object containing the calculated field
- * - for singleValueActions, the action subject may differ depending on the caller
+ * Subject of the action (context-dependent: form data, page variables, object being saved, etc.). Set by initialize().
  */
 export let actionSubject: any;
 
 /**
- * userContext contains the user context information for the user that is executing the action.
- * This value is set upon calling the initialize function with incoming event data.
+ * User context (user, userProxy, orgProxy, keys). Set by initialize().
  */
 export let userContext: UserContext;
 
 /**
- * params contains the parameters passed to the action. If an input dialog is used, params will
- * contain the values entered in the dialog. This value is set upon calling the initialize
- * function with incoming event data.
+ * Parameters passed to the action (e.g., from input dialog). Set by initialize().
  */
 export let params: string;
 
 /**
- * useBody is a flag indicating how responses should be formatted. If true, the response will be
- * returned as an object with the HTTP response code and ActionResponse in the body field. If false,
- * the ActionResponse will be returned directly. Typically, this does not need to be set by the
- * action handler and should remain false.
+ * Response format flag (internal). Typically leave as false.
  */
 export let useBody: boolean;
 
 /**
- * initialize initializes the SDK with event data. This should be called at the beginning of the
- * action handler to set up the SDK with incoming information, including context information, input
- * parameters, and authentication information needed to make API requests to the Halix service.
+ * Initializes SDK with event data. Call at the beginning of action handler to set up authentication, context, and parameters.
  * 
- * @param event - The event object containing authentication and context information
+ * @param event - Event object with body containing IncomingEventBody
  */
 export function initialize(event: { body?: IncomingEventBody }) {
 
@@ -139,25 +117,14 @@ export interface IncomingEventBody {
 }
 
 /**
- * BaseActionResponse is an interface defining the base properties of an action response.
+ * Base properties for action responses. Use specific response types: ListActionResponse, FormTemplateActionResponse, etc.
  */
 export interface BaseActionResponse {
-    /** 
-     * The type of action response 
-     * 
-     * listAction - Use when the action is being run from a list
-     * formTemplateAction - Use when the action is being run from a form template
-     * pageTemplateAction - Use when the action is being run from a page template
-     * objectSaveAction - Use when the action has been specified for use on object save events
-     * calculatedFieldAction - Use when the action is being used to determine calculated field values
-     * singleValueAction - Use when the action is being used to determine a single value in specific
-     * build-in platform events (e.g., determining shopping cart prices)
-     * error - Use when the action is not successful
-     */
+    /** Response type: listAction, formTemplateAction, pageTemplateAction, objectSaveAction, calculatedFieldAction, singleValueAction, or error */
     responseType: "listAction" | "formTemplateAction" | "pageTemplateAction" | "objectSaveAction" | "calculatedFieldAction" | "singleValueAction" | "error";
     /** Whether the action is an error */
     isError: boolean;
-    /** Notification configurations; present only if the action should trigger one or more notifications */
+    /** Optional notification configurations */
     notificationConfigs?: NotificationConfig[];
 }
 
@@ -167,8 +134,7 @@ export interface BaseActionResponse {
 export type ActionResponse = ListActionResponse | FormTemplateActionResponse | PageTemplateActionResponse | ObjectSaveActionResponse | CalculatedFieldActionResponse | SingleValueActionResponse;
 
 /**
- * NotificationConfig is an interface defining a notification that should be triggered by a
- * successful action response.
+ * Notification configuration for triggering notifications from action responses.
  */ 
 export interface NotificationConfig {
     /** The ID of a notification definition setup within the solution */
@@ -217,9 +183,7 @@ export interface NotificationConfig {
 }
 
 /**
- * ListActionResponse is an interface defining the properties of a list action response. These
- * properties are expected by the list framework unpon receiving an action response from an action
- * handler.
+ * Response for actions run from lists.
  */
 export interface ListActionResponse extends BaseActionResponse {
     responseType: "listAction";
@@ -228,9 +192,7 @@ export interface ListActionResponse extends BaseActionResponse {
 }
 
 /**
- * FormTemplateActionResponse is an interface defining the properties of a form template action
- * response. These properties are expected by the form framework unpon receiving an action response
- * from an action handler.
+ * Response for actions run from forms.
  */
 export interface FormTemplateActionResponse extends BaseActionResponse {
     responseType: "formTemplateAction";
@@ -239,9 +201,7 @@ export interface FormTemplateActionResponse extends BaseActionResponse {
 }
 
 /**
- * PageTemplateActionResponse is an interface defining the properties of a page template action
- * response. These properties are expected by the page framework unpon receiving an action response
- * from an action handler.
+ * Response for actions run from pages.
  */
 export interface PageTemplateActionResponse extends BaseActionResponse {
     responseType: "pageTemplateAction";
@@ -251,9 +211,7 @@ export interface PageTemplateActionResponse extends BaseActionResponse {
 }
 
 /**
- * ObjectSaveActionResponse is an interface defining the properties of an object save action
- * response. These properties are expected by the object save framework unpon receiving an action
- * response from an action handler.
+ * Response for actions triggered on object save events.
  */
 export interface ObjectSaveActionResponse extends BaseActionResponse {
     responseType: "objectSaveAction";
@@ -262,9 +220,7 @@ export interface ObjectSaveActionResponse extends BaseActionResponse {
 }
 
 /**
- * CalculatedFieldActionResponse is an interface defining the properties of a calculated field
- * action response. These properties are expected by the calculated field framework unpon receiving
- * an action response from an action handler.
+ * Response for actions computing calculated field values.
  */
 export interface CalculatedFieldActionResponse extends BaseActionResponse {
     responseType: "calculatedFieldAction";
@@ -272,8 +228,7 @@ export interface CalculatedFieldActionResponse extends BaseActionResponse {
 }
 
 /**
- * SingleValueActionResponse is an interface defining the properties of a single value action
- * response. These properties are expected by the caller of the action.
+ * Response for actions returning a single value.
  */
 export interface SingleValueActionResponse extends BaseActionResponse {
     responseType: "singleValueAction";
@@ -294,14 +249,9 @@ export interface ErrorResponse {
 // ================================================================================
 
 /**
- * prepareSuccessResponse prepares a success response in the appropriate format. The action handler
- * should return an ActionResponse response when the action is successful. If useBody is true, the
- * response will be returned as an object with the HTTP response code and the ActionResponse in the
- * body field. If useBody is false, the ActionResponse will be returned directly.
+ * Formats a success response. Returns ActionResponse directly, or wrapped with statusCode if useBody is true.
  * 
- * @param successResponse - The value to return
- * 
- * @returns Formatted success response; an ActionResponse unless useBody is true
+ * @returns ActionResponse or {statusCode: 200, body: string}
  */
 export function prepareSuccessResponse(successResponse: ActionResponse): { statusCode: number; body: string } | ActionResponse {
     if (useBody) {
@@ -315,14 +265,9 @@ export function prepareSuccessResponse(successResponse: ActionResponse): { statu
 }
 
 /**
- * prepareErrorResponse prepares an error response in the appropriate format. The action handler
- * should return an ErrorResponse response when the action is not successful. If useBody is true,
- * the response will be returned as an object with the HTTP response code and the ErrorResponse in
- * the body field. If useBody is false, the ErrorResponse will be returned directly.
+ * Formats an error response. Returns ErrorResponse directly, or wrapped with statusCode if useBody is true.
  * 
- * @param errorMessage - The error message
- * 
- * @returns Formatted error response; an ErrorResponse unless useBody is true
+ * @returns ErrorResponse or {statusCode: 400, body: string}
  */
 export function prepareErrorResponse(errorMessage: string): { statusCode: number; body: string } | ErrorResponse {
     if (useBody) {

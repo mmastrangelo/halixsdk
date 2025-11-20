@@ -50,18 +50,9 @@ export interface ContentResource {
 // ================================================================================
 
 /**
- * getOrCreateResource retrieves an existing content resource by its key, or creates a new one
- * if the key is not provided. If a resource key is provided, it attempts to fetch the existing
- * resource from the server. If no key is provided, it creates a new resource with the specified
- * properties.
+ * Retrieves an existing content resource by key, or creates a new one if key is null.
  * 
- * @param resourceKey - Optional key of the existing resource to retrieve
- * @param fileToUpload - Optional file or blob to upload
- * @param publicFlag - Whether the resource should be public
- * @param resourceType - The type of resource
- * @param tags - Array of tags for the resource
- * 
- * @returns Promise resolving to a ContentResource
+ * @returns Promise<ContentResource>
  */
 export async function getOrCreateResource(resourceKey: string | null, fileToUpload: File | Blob | null, publicFlag: boolean, resourceType: string, tags: string[]): Promise<ContentResource> {
 
@@ -111,30 +102,16 @@ export async function getOrCreateResource(resourceKey: string | null, fileToUplo
 }
 
 /**
- * getOrCreateResourceAsObservable retrieves an existing content resource by its key, or creates a new one
- * if the key is not provided. If a resource key is provided, it attempts to fetch the existing
- * resource from the server. If no key is provided, it creates a new resource with the specified
- * properties.
- * 
- * @param resourceKey - Optional key of the existing resource to retrieve
- * @param fileToUpload - Optional file or blob to upload
- * @param publicFlag - Whether the resource should be public
- * @param resourceType - The type of resource
- * @param tags - Array of tags for the resource
- * 
- * @returns Observable resolving to a ContentResource
+ * Observable version of getOrCreateResource. See getOrCreateResource for details.
  */
 export function getOrCreateResourceAsObservable(resourceKey: string | null, fileToUpload: File | Blob | null, publicFlag: boolean, resourceType: string, tags: string[]): Observable<ContentResource> {
     return from(getOrCreateResource(resourceKey, fileToUpload, publicFlag, resourceType, tags));
 }
 
 /**
- * saveResource saves a content resource to the server. The resource is saved with appropriate
- * ownership parameters based on the current context (solution builder vs regular organization view).
+ * Saves a content resource with appropriate ownership based on context (solution builder vs org view).
  * 
- * @param resource - The ContentResource to save
- * 
- * @returns Promise resolving to the saved ContentResource
+ * @returns Promise<ContentResource>
  */
 export async function saveResource(resource: ContentResource): Promise<ContentResource> {
 
@@ -167,26 +144,16 @@ export async function saveResource(resource: ContentResource): Promise<ContentRe
 }
 
 /**
- * saveResourceAsObservable saves a content resource to the server. The resource is saved with appropriate
- * ownership parameters based on the current context (solution builder vs regular organization view).
- * 
- * @param resource - The ContentResource to save
- * 
- * @returns Observable resolving to the saved ContentResource
+ * Observable version of saveResource. See saveResource for details.
  */
 export function saveResourceAsObservable(resource: ContentResource): Observable<ContentResource> {
     return from(saveResource(resource));
 }
 
 /**
- * sendFileContents uploads file contents to the server for a specific resource. The file is uploaded
- * via FormData with the appropriate scope and public flag settings.
+ * Uploads file contents to a resource via FormData.
  * 
- * @param resourceKey - The key of the resource to upload file contents for
- * @param fileToUpload - The file or blob to upload
- * @param publicFlag - Whether the file should be public
- * 
- * @returns Promise resolving to true if upload was successful
+ * @returns Promise<boolean> - true if successful
  */
 export async function sendFileContents(resourceKey: string, fileToUpload: File | Blob, publicFlag: boolean): Promise<boolean> {
 
@@ -215,31 +182,16 @@ export async function sendFileContents(resourceKey: string, fileToUpload: File |
 }
 
 /**
- * sendFileContentsAsObservable uploads file contents to the server for a specific resource. The file is uploaded
- * via FormData with the appropriate scope and public flag settings.
- * 
- * @param resourceKey - The key of the resource to upload file contents for
- * @param fileToUpload - The file or blob to upload
- * @param publicFlag - Whether the file should be public
- * 
- * @returns Observable resolving to true if upload was successful
+ * Observable version of sendFileContents. See sendFileContents for details.
  */
 export function sendFileContentsAsObservable(resourceKey: string, fileToUpload: File | Blob, publicFlag: boolean): Observable<boolean> {
     return from(sendFileContents(resourceKey, fileToUpload, publicFlag));
 }
 
 /**
- * createOrUpdateResource creates a new content resource or updates an existing one, then uploads
- * the file contents to that resource. If a resourceKey is provided, it updates the existing resource;
- * otherwise, it creates a new resource and uploads the file to the newly created resource.
+ * Creates or updates a content resource and uploads file contents. If resourceKey is provided, updates existing; otherwise creates new.
  * 
- * @param resourceKey - Optional key of the existing resource to update; if not provided, a new resource is created
- * @param fileToUpload - The file or blob to upload
- * @param publicFlag - Whether the resource should be public
- * @param resourceType - The type of resource
- * @param tags - Array of tags for the resource
- * 
- * @returns Promise resolving to the ContentResource with uploaded file
+ * @returns Promise<ContentResource> with uploaded file metadata
  */
 export async function createOrUpdateResource(resourceKey: string | null, fileToUpload: File | Blob, publicFlag: boolean, resourceType: string, tags: string[]): Promise<ContentResource> {
 
@@ -276,17 +228,7 @@ export async function createOrUpdateResource(resourceKey: string | null, fileToU
 }
 
 /**
- * createOrUpdateResourceAsObservable creates a new content resource or updates an existing one, then uploads
- * the file contents to that resource. If a resourceKey is provided, it updates the existing resource;
- * otherwise, it creates a new resource and uploads the file to the newly created resource.
- * 
- * @param resourceKey - Optional key of the existing resource to update; if not provided, a new resource is created
- * @param fileToUpload - The file or blob to upload
- * @param publicFlag - Whether the resource should be public
- * @param resourceType - The type of resource
- * @param tags - Array of tags for the resource
- * 
- * @returns Observable resolving to the ContentResource with uploaded file
+ * Observable version of createOrUpdateResource. See createOrUpdateResource for details.
  */
 export function createOrUpdateResourceAsObservable(resourceKey: string | null, fileToUpload: File | Blob, publicFlag: boolean, resourceType: string, tags: string[]): Observable<ContentResource> {
     return from(createOrUpdateResource(resourceKey, fileToUpload, publicFlag, resourceType, tags));

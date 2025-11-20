@@ -42,13 +42,9 @@ export interface SaveOptions {
 // ================================================================================
 
 /**
- * getObject retrieves a single object from the database by its data element ID and key.
+ * Retrieves a single object by dataElementId and key. Optionally fetch related objects.
  * 
- * @param dataElementId - The ID of the data element
- * @param key - The key of the object
- * @param fetchedRelationships - Optional array of relationships to fetch; if provided, the returned
- * object will include the specified related objects as nested objects
- * @returns Promise resolving to the object data
+ * @returns Promise<any> - the object data
  */
 export async function getObject(dataElementId: string, key: string, fetchedRelationships?: string[]) {
     if (!getAuthToken) {
@@ -82,43 +78,21 @@ export async function getObject(dataElementId: string, key: string, fetchedRelat
 }
 
 /**
- * getObjectAsObservable retrieves a single object from the database by its data element ID and key.
- * 
- * @param dataElementId - The ID of the data element
- * @param key - The key of the object
- * @param fetchedRelationships - Optional array of relationships to fetch; if provided, the returned
- * object will include the specified related objects as nested objects
- * 
- * @returns Observable resolving to the object data
+ * Observable version of getObject. See getObject for details.
  */
 export function getObjectAsObservable(dataElementId: string, key: string, fetchedRelationships?: string[]): Observable<any> {
     return from(getObject(dataElementId, key, fetchedRelationships));
 }
 
 /**
- * getRelatedObjects retrieves an array of objects from the the database. The objects returned are
- * related to a parent through a defined relationship in the schema. In a typical setup, action's
- * auth token must have scope access to the parent object in order to access all of its related
- * objects.
+ * Retrieves all objects related to a parent through a schema relationship. Commonly used to get objects belonging to current user/org proxy.
  * 
- * It is common to use getRelatedObjects to retrieve all objects belonging to the current user proxy
- * or organization proxy. For example, in a user context where the current user proxy element is
- * "customer," an action might want to retrieve all "purchase" objects related to the current
- * customer. Similarly, in an organization context where the current organization proxy is
- * "business," an action might want to retrieve all "employee" objects related to the current
- * business.
- * 
- * @param parentElementId - The ID of the parent element
- * @param parentKey - The key of the parent object
- * @param elementId - The ID of the element
- * @param filter - Optional filter criteria for the query; if not provided, all related objects will
- * be returned
- * @param fetchedRelationships - Optional array of relationships to fetch; if provided, the returned
- * objects will include the specified related objects as nested objects
- * 
- * @returns Promise resolving to an array of objects
- * 
- * @see {@link FilterExpression} for filter syntax and examples
+ * @param parentElementId - Parent element ID
+ * @param parentKey - Parent object key
+ * @param elementId - Child element ID
+ * @param filter - Optional filter (see FilterExpression)
+ * @param fetchedRelationships - Optional relationships to include as nested objects
+ * @returns Promise<any[]>
  */
 export async function getRelatedObjects(parentElementId: string, parentKey: string, elementId: string, filter?: FilterExpression, fetchedRelationships?: string[]): Promise<any[]> {
     if (!getAuthToken) {
@@ -155,29 +129,7 @@ export async function getRelatedObjects(parentElementId: string, parentKey: stri
 }
 
 /**
- * getRelatedObjectsAsObservable retrieves an array of objects from the the database. The objects
- * returned are related to a parent through a defined relationship in the schema. In a typical
- * setup, action's auth token must have scope access to the parent object in order to access all of
- * its related objects.
- * 
- * It is common to use getRelatedObjects to retrieve all objects belonging to the current user proxy
- * or organization proxy. For example, in a user context where the current user proxy element is
- * "customer," an action might want to retrieve all "purchase" objects related to the current
- * customer. Similarly, in an organization context where the current organization proxy is
- * "business," an action might want to retrieve all "employee" objects related to the current
- * business.
- * 
- * @param parentElementId - The ID of the parent element
- * @param parentKey - The key of the parent element
- * @param elementId - The ID of the element
- * @param filter - Optional filter criteria for the query; if not provided, all related objects will
- * be returned
- * @param fetchedRelationships - Optional array of relationships to fetch; if provided, the returned
- * objects will include the specified related objects as nested objects
- * 
- * @returns Observable resolving to an array of objects
- * 
- * @see {@link FilterExpression} for filter syntax and examples
+ * Observable version of getRelatedObjects. See getRelatedObjects for details.
  */
 export function getRelatedObjectsAsObservable(parentElementId: string, parentKey: string, elementId: string, filter?: FilterExpression, fetchedRelationships?: string[]): Observable<any[]> {
     return from(getRelatedObjects(parentElementId, parentKey, elementId, filter, fetchedRelationships));
@@ -188,20 +140,11 @@ export function getRelatedObjectsAsObservable(parentElementId: string, parentKey
 // ================================================================================
 
 /**
- * saveRelatedObject saves a related object to the database. The objectToSave is saved, and its
- * relationship to the parent object is established based on the relationship specified in the
- * schema. The objectToSave must have a relationship to the parent object and the user must have
- * scope access to the parent object.
+ * Saves a related object and establishes relationship to parent. Returns saved object with any server-assigned values (objKey, calculated fields).
  * 
- * @param parentElementId - The ID of the parent element
- * @param parentKey - The key of the parent object
- * @param elementId - The element ID of the object to save
- * @param objectToSave - The object data to save (as a JSON string)
- * @param opts - Optional save options
- * 
- * @returns Promise resolving to saved object, including any updates made to the object during the
- * save operation (such as assigning an objKey if the object is new), or the assignment of
- * calculated values
+ * @param objectToSave - JSON string of object data
+ * @param opts - Optional: bypassValidation
+ * @returns Promise<any> - saved object with updates
  */
 export async function saveRelatedObject(parentElementId: string, parentKey: string, elementId: string, objectToSave: string, opts?: SaveOptions): Promise<any> {
     if (!getAuthToken) {
@@ -229,21 +172,8 @@ export async function saveRelatedObject(parentElementId: string, parentKey: stri
     return response.data;
 }
 
-/** 
- * saveRelatedObjectAsObservable saves a related object to the database. The objectToSave is saved,
- * and its relationship to the parent object is established based on the relationship specified in
- * the schema. The objectToSave must have a relationship to the parent object and the user must have
- * scope access to the parent object.
- * 
- * @param parentElementId - The ID of the parent element
- * @param parentKey - The key of the parent object
- * @param elementId - The element ID of the object to save
- * @param objectToSave - The object data to save (as a JSON string)
- * @param opts - Optional save options
- * 
- * @returns Observable resolving to saved object, including any updates made to the object during
- * the save operation (such as assigning an objKey if the object is new), or the assignment of
- * calculated values
+/**
+ * Observable version of saveRelatedObject. See saveRelatedObject for details.
  */
 export function saveRelatedObjectAsObservable(parentElementId: string, parentKey: string, elementId: string, objectToSave: string, opts?: SaveOptions): Observable<any> {
     return from(saveRelatedObject(parentElementId, parentKey, elementId, objectToSave, opts));
@@ -254,14 +184,9 @@ export function saveRelatedObjectAsObservable(parentElementId: string, parentKey
 // ================================================================================
 
 /**
- * deleteRelatedObject deletes a single object related to a specific parent.
+ * Deletes a single object related to a parent.
  * 
- * @param parentElementId - The ID of the parent element
- * @param parentKey - The key of the parent object
- * @param childElementId - The ID of the child element to delete
- * @param childKey - The key of the child object to delete
- * 
- * @returns Promise resolving to true if deletion was successful
+ * @returns Promise<boolean> - true if successful
  */
 export async function deleteRelatedObject(parentElementId: string, parentKey: string, childElementId: string, childKey: string): Promise<boolean> {
 
@@ -288,28 +213,17 @@ export async function deleteRelatedObject(parentElementId: string, parentKey: st
 }
 
 /**
- * deleteRelatedObjectAsObservable deletes a single object related to a specific parent.
- * 
- * @param parentElementId - The ID of the parent element
- * @param parentKey - The key of the parent object
- * @param childElementId - The ID of the child element to delete
- * @param childKey - The key of the child object to delete
- * 
- * @returns Observable resolving to true if deletion was successful
+ * Observable version of deleteRelatedObject. See deleteRelatedObject for details.
  */
 export function deleteRelatedObjectAsObservable(parentElementId: string, parentKey: string, childElementId: string, childKey: string): Observable<boolean> {
     return from(deleteRelatedObject(parentElementId, parentKey, childElementId, childKey));
 }
 
 /**
- * deleteRelatedObjects deletes multiple objects related to a specific parent.
+ * Deletes multiple objects related to a parent.
  * 
- * @param parentElementId - The ID of the parent element
- * @param parentKey - The key of the parent object
- * @param childElementId - The ID of the child element to delete
- * @param childKeys - Array of keys of the child objects to delete
- * 
- * @returns Promise resolving to true if deletion was successful
+ * @param childKeys - Array of child object keys to delete
+ * @returns Promise<boolean> - true if successful
  */
 export async function deleteRelatedObjects(parentElementId: string, parentKey: string, childElementId: string, childKeys: string[]): Promise<boolean> {
 
@@ -337,14 +251,7 @@ export async function deleteRelatedObjects(parentElementId: string, parentKey: s
 }
 
 /**
- * deleteRelatedObjectsAsObservable deletes multiple objects related to a specific parent.
- * 
- * @param parentElementId - The ID of the parent element
- * @param parentKey - The key of the parent object
- * @param childElementId - The ID of the child element to delete
- * @param childKeys - Array of keys of the child objects to delete
- * 
- * @returns Observable resolving to true if deletion was successful
+ * Observable version of deleteRelatedObjects. See deleteRelatedObjects for details.
  */
 export function deleteRelatedObjectsAsObservable(parentElementId: string, parentKey: string, childElementId: string, childKeys: string[]): Observable<boolean> {
     return from(deleteRelatedObjects(parentElementId, parentKey, childElementId, childKeys));

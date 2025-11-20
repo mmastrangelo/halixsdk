@@ -100,49 +100,19 @@ interface ServerMessageRequest {
 // ================================================================================
 
 /**
- * sendMessage sends a message (email and/or text) to recipients through the Halix notification
- * service. The message is sent asynchronously - this function returns immediately after the
- * message is queued for sending.
+ * Sends email/text message to recipients. Returns when message is queued (sent asynchronously).
  * 
- * @param orgProxyElementId - The ID of the organization proxy element (e.g., "business", "school")
- * @param orgProxyKey - The key of the organization proxy object
- * @param message - The message request object containing recipients, content, and delivery options
- * 
- * @returns Promise that resolves when the message has been queued for sending
+ * @param orgProxyElementId - Org proxy element ID (e.g., "business")
+ * @param orgProxyKey - Org proxy key
+ * @param message - MessageRequest with userProxyKeys/directEmailAddresses, subject, body, sentAs, replyToEmail, resourceKeys
+ * @returns Promise<void> - resolves when queued
  * 
  * @example
- * ```typescript
- * // Send an email to customers (sentAs defaults to email)
  * await sendMessage('business', businessKey, {
- *   userProxyKeys: [customerKey1, customerKey2, customerKey3],
+ *   userProxyKeys: [customerKey1, customerKey2],
  *   subject: 'Important Announcement',
- *   body: '<p>This is an important announcement.</p>',
- *   replyToEmail: 'sender@example.com'
+ *   body: '<p>This is an important announcement.</p>'
  * });
- * ```
- * 
- * @example
- * ```typescript
- * // Send to user proxies and direct email addresses
- * await sendMessage('business', businessKey, {
- *   userProxyKeys: [clientKey1, clientKey2],
- *   directEmailAddresses: ['manager@example.com'],
- *   sentAs: MessageMethod.EmailAndText,
- *   subject: 'Project Reminder',
- *   body: '<p>Don\'t forget about the deadline.</p>',
- *   resourceKeys: [attachmentKey]
- * });
- * ```
- * 
- * @example
- * ```typescript
- * // Send email to direct addresses only (no user proxies)
- * await sendMessage('business', businessKey, {
- *   directEmailAddresses: ['partner@example.com', 'vendor@example.com'],
- *   subject: 'External Notification',
- *   body: '<p>Important information for external stakeholders.</p>'
- * });
- * ```
  */
 export async function sendMessage(orgProxyElementId: string, orgProxyKey: string, message: MessageRequest): Promise<void> {
 
@@ -184,28 +154,7 @@ export async function sendMessage(orgProxyElementId: string, orgProxyKey: string
 }
 
 /**
- * sendMessageAsObservable sends a message (email and/or text) to recipients through the Halix
- * notification service. The message is sent asynchronously - this observable completes immediately
- * after the message is queued for sending.
- * 
- * @param orgProxyElementId - The ID of the organization proxy element (e.g., "business", "school")
- * @param orgProxyKey - The key of the organization proxy object
- * @param message - The message request object containing recipients, content, and delivery options
- * 
- * @returns Observable that completes when the message has been queued for sending
- * 
- * @example
- * ```typescript
- * sendMessageAsObservable('business', businessKey, {
- *   userProxyKeys: [customerKey1, customerKey2],
- *   directEmailAddresses: ['admin@example.com'],
- *   subject: 'Monthly Newsletter',
- *   body: '<p>Newsletter content here...</p>'
- * }).subscribe({
- *   next: () => console.log('Message queued for sending'),
- *   error: (err) => console.error('Failed to send message:', err)
- * });
- * ```
+ * Observable version of sendMessage. See sendMessage for details.
  */
 export function sendMessageAsObservable(orgProxyElementId: string, orgProxyKey: string, message: MessageRequest): Observable<void> {
     return from(sendMessage(orgProxyElementId, orgProxyKey, message));

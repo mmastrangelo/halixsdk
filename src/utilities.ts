@@ -43,12 +43,9 @@ export interface SortField {
 // ================================================================================
 
 /**
- * sortObjectArray is a helper function that sorts the passed array in place by the given
- * attributes. Sorting by nested attributes in the form of a delimited attribute string are
- * supported (e.g., "attribute.nestedAttribute").
+ * Sorts an array in-place by specified attributes. Supports nested attributes via dot notation (e.g., "user.name").
  * 
- * @param array - The array to sort
- * @param sort - Array of sort field specifications
+ * @param sort - Array of SortField with attributeId, descending?, caseInsensitive?
  * @returns The sorted array
  */
 export function sortObjectArray<T>(array: Array<T>, sort: SortField[]): Array<T> {
@@ -71,16 +68,9 @@ export function sortObjectArray<T>(array: Array<T>, sort: SortField[]): Array<T>
 }
 
 /**
- * compareValues is a helper function that compares two values for sorting purposes. If the values
- * are strings, the comparison is case-insensitive. If the values are numbers, the comparison is
- * performed numerically. 
+ * Compares two values for sorting. Handles strings (with optional case-insensitivity) and numbers.
  * 
- * @param valueA - First value to compare
- * @param valueB - Second value to compare
- * @param descending - Whether to sort in descending order
- * @param caseInsensitive - Whether to perform case-insensitive comparison for strings
- * 
- * @returns Comparison result (-1, 0, or 1)
+ * @returns number - comparison result (-1, 0, or 1)
  */
 export function compareValues(valueA: any, valueB: any, descending: boolean, caseInsensitive: boolean): number {
 
@@ -112,16 +102,9 @@ export function compareValues(valueA: any, valueB: any, descending: boolean, cas
 }
 
 /**
- * getValueFromObject is a helper function that extracts a value from an object using a dot-notation
- * path. The path can include relationships. Relationship IDs may include a colon delimiter (e.g.,
- * "accountMember:ownerAccountMemberKey") to specify the key of the related object. This is useful
- * when an element has more than one relationship to the same object type. Otherwise, if only one
- * relationship to the same object type exists, the key may be specified without the relationship ID
- * (e.g., simply, "accountMember").
+ * Extracts a value from an object using dot-notation path. Supports relationships with colon delimiter (e.g., "accountMember:ownerAccountMemberKey").
  * 
- * @param object - The object to extract value from
- * @param attribute - The attribute path (e.g., "user.address.city")
- * 
+ * @param attribute - Dot-notation path (e.g., "user.address.city")
  * @returns The extracted value
  */
 export function getValueFromObject(object: any, attribute: string): any {
@@ -150,13 +133,10 @@ export function getValueFromObject(object: any, attribute: string): any {
 }
 
 /**
- * debounceFn is a utility function that debounces a function call. It is used to prevent multiple
- * calls to the same function within a short period of time.
+ * Debounces a function call to prevent excessive execution within a short period.
  * 
- * @param fn - The function to debounce
- * @param wait - The number of milliseconds to wait before calling the function
- * 
- * @returns The debounced function
+ * @param wait - Milliseconds to wait (default: 200)
+ * @returns Debounced function
  */
 export function debounceFn<T extends (...args: any[]) => void>(fn: T, wait = 200) {
     let timeout: NodeJS.Timeout;
