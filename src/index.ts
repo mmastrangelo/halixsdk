@@ -157,6 +157,26 @@ export {
 } from './lists';
 
 // ================================================================================
+// DATA AGGREGATE FUNCTIONS
+// ================================================================================
+
+export {
+    // Interfaces
+    type AggregationRequest,
+    type AggregationResponse,
+    type AggregationGroup,
+    type AggregationSort,
+    type Aggregation,
+    type AggregationGroupTransform,
+    type TransformType,
+    type AggregationType,
+
+    // Functions
+    getAggregateData,
+    getAggregateDataAsObservable
+} from './data-aggregate';
+
+// ================================================================================
 // UTILITY FUNCTIONS
 // ================================================================================
 
