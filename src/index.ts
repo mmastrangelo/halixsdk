@@ -161,9 +161,12 @@ export {
 // ================================================================================
 
 export {
+    // Classes
+    AggregationResponse,
+    
     // Interfaces
     type AggregationRequest,
-    type AggregationResponse,
+    type AggregationRow,
     type AggregationGroup,
     type AggregationSort,
     type Aggregation,

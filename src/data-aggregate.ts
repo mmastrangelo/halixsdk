@@ -125,7 +125,7 @@ export interface AggregationRequest {
      * List of grouping specifications. Groups are formed by field values with optional transforms.
      * Results will be grouped by these fields in the order specified.
      */
-    groups: AggregationGroup[];
+    groups?: AggregationGroup[];
 
     /**
      * List of secondary sort specifications for the aggregated results.
@@ -140,11 +140,189 @@ export interface AggregationRequest {
 }
 
 /**
- * AggregationResponse wraps the aggregated data results.
+ * AggregationRow represents a single row in the aggregated results.
+ * Contains dynamic fields for groups and aggregations.
  */
-export interface AggregationResponse {
-    /** The aggregated data results */
-    data: any[];
+export interface AggregationRow {
+    [key: string]: any;
+}
+
+/**
+ * AggregationResponse provides structured access to aggregated data results.
+ * Each row contains:
+ * - Group fields named after their groupField property
+ * - Aggregation fields named as {aggregationType}_{aggregationField} (e.g., "count_objKey", "sum_totalAmount")
+ */
+export class AggregationResponse {
+    private rawData: AggregationRow[];
+
+    constructor(data: AggregationRow[]) {
+        this.rawData = data || [];
+    }
+
+    /**
+     * Get the raw data array.
+     * @returns Array of aggregation result rows
+     */
+    getData(): AggregationRow[] {
+        return this.rawData;
+    }
+
+    /**
+     * Get the number of rows in the aggregated results.
+     */
+    get length(): number {
+        return this.rawData.length;
+    }
+
+    /**
+     * Get a specific row by index.
+     * @param index - The row index
+     * @returns The row at the specified index, or undefined if out of bounds
+     */
+    getRow(index: number): AggregationRow | undefined {
+        return this.rawData[index];
+    }
+
+    /**
+     * Get a group field value from a specific row.
+     * @param row - The aggregation row
+     * @param groupField - The name of the group field
+     * @returns The group field value
+     */
+    getGroup(row: AggregationRow, groupField: string): any {
+        return row[groupField];
+    }
+
+    /**
+     * Get an aggregation value from a specific row.
+     * Handles case-insensitive aggregation type matching.
+     * @param row - The aggregation row
+     * @param aggregationType - The aggregation type (case-insensitive: 'Count', 'Sum', 'Average', etc.)
+     * @param aggregationField - The field that was aggregated
+     * @returns The aggregation value
+     */
+    getAggregation(row: AggregationRow, aggregationType: AggregationType | string, aggregationField: string): any {
+        const fieldName = this.getAggregationFieldName(aggregationType, aggregationField);
+        return row[fieldName];
+    }
+
+    /**
+     * Build the aggregation field name from type and field.
+     * @param aggregationType - The aggregation type (case-insensitive)
+     * @param field - The field name
+     * @returns The aggregation field name in the format {type}_{field}
+     */
+    private getAggregationFieldName(aggregationType: string, field: string): string {
+        return `${aggregationType.toLowerCase()}_${field}`;
+    }
+
+    /**
+     * Find rows matching specific group values.
+     * @param groupFilters - Object with group field names as keys and desired values
+     * @returns Array of matching rows
+     * 
+     * @example
+     * // Find all rows where status is "Draft"
+     * response.findByGroups({ status: 'Draft' })
+     * 
+     * @example
+     * // Find rows where status is "Draft" and homeLanguage is "English"
+     * response.findByGroups({ status: 'Draft', homeLanguage: 'English' })
+     */
+    findByGroups(groupFilters: { [groupField: string]: any }): AggregationRow[] {
+        return this.rawData.filter(row => {
+            return Object.entries(groupFilters).every(([field, value]) => row[field] === value);
+        });
+    }
+
+    /**
+     * Get a specific aggregation value for rows matching group filters.
+     * @param groupFilters - Object with group field names as keys and desired values
+     * @param aggregationType - The aggregation type (case-insensitive)
+     * @param aggregationField - The field that was aggregated
+     * @returns The aggregation value from the first matching row, or undefined if no match
+     * 
+     * @example
+     * // Get count of objKey for Draft status and English homeLanguage
+     * response.getAggregationValue(
+     *   { status: 'Draft', homeLanguage: 'English' },
+     *   'Count',
+     *   'objKey'
+     * )
+     */
+    getAggregationValue(
+        groupFilters: { [groupField: string]: any },
+        aggregationType: AggregationType | string,
+        aggregationField: string
+    ): any {
+        const row = this.findByGroups(groupFilters)[0];
+        return row ? this.getAggregation(row, aggregationType, aggregationField) : undefined;
+    }
+
+    /**
+     * Iterate over all rows with a callback function.
+     * @param callback - Function to execute for each row
+     */
+    forEach(callback: (row: AggregationRow, index: number) => void): void {
+        this.rawData.forEach(callback);
+    }
+
+    /**
+     * Map aggregation rows to a new array.
+     * @param callback - Function to transform each row
+     * @returns New array of transformed values
+     */
+    map<T>(callback: (row: AggregationRow, index: number) => T): T[] {
+        return this.rawData.map(callback);
+    }
+
+    /**
+     * Filter aggregation rows.
+     * @param predicate - Function to test each row
+     * @returns New array of rows that pass the test
+     */
+    filter(predicate: (row: AggregationRow, index: number) => boolean): AggregationRow[] {
+        return this.rawData.filter(predicate);
+    }
+
+    /**
+     * Make the response iterable for use in for...of loops.
+     */
+    [Symbol.iterator](): Iterator<AggregationRow> {
+        return this.rawData[Symbol.iterator]();
+    }
+
+    /**
+     * Get all unique values for a specific group field across all rows.
+     * @param groupField - The group field name
+     * @returns Array of unique values (excluding null/undefined)
+     */
+    getUniqueGroupValues(groupField: string): any[] {
+        const values = new Set<any>();
+        this.rawData.forEach(row => {
+            const value = row[groupField];
+            if (value !== null && value !== undefined) {
+                values.add(value);
+            }
+        });
+        return Array.from(values);
+    }
+
+    /**
+     * Calculate the sum of a specific aggregation across all rows.
+     * Useful for totaling aggregated values.
+     * @param aggregationType - The aggregation type
+     * @param aggregationField - The field that was aggregated
+     * @returns Sum of the aggregation values, or 0 if no valid values
+     */
+    sumAggregation(aggregationType: AggregationType | string, aggregationField: string): number {
+        const fieldName = this.getAggregationFieldName(aggregationType, aggregationField);
+        return this.rawData.reduce((sum, row) => {
+            const value = row[fieldName];
+            return sum + (typeof value === 'number' ? value : 0);
+        }, 0);
+    }
 }
 
 // ================================================================================
@@ -156,10 +334,10 @@ export interface AggregationResponse {
  * Supports filtering, grouping with transforms, sorting, and multiple aggregations.
  *
  * @param request - Aggregation configuration including dataElementId, parent scope, groups, aggregations
- * @returns Promise<AggregationResponse> with aggregated data array
+ * @returns Promise<AggregationResponse> - A class instance providing structured access to aggregated data
  *
  * @example
- * const results = await getAggregateData({
+ * const result = await getAggregateData({
  *   dataElementId: 'order',
  *   parentDataElementId: 'company',
  *   parentKey: orgProxyKey,
@@ -175,6 +353,14 @@ export interface AggregationResponse {
  *     aggregationField: 'totalAmount'
  *   }]
  * });
+ * 
+ * // Access aggregation values
+ * const count = result.getAggregationValue({ status: 'Draft' }, 'Count', 'objKey');
+ * 
+ * // Iterate over results
+ * for (const row of result) {
+ *   console.log(row.status, result.getAggregation(row, 'Sum', 'totalAmount'));
+ * }
  */
 export async function getAggregateData(request: AggregationRequest): Promise<AggregationResponse> {
     if (!getAuthToken) {
@@ -196,7 +382,7 @@ export async function getAggregateData(request: AggregationRequest): Promise<Agg
     // Make the API request
     let response = await axios.post(url, request, { headers });
 
-    return response.data;
+    return new AggregationResponse(response.data.data);
 }
 
 /**
@@ -207,7 +393,10 @@ export async function getAggregateData(request: AggregationRequest): Promise<Agg
  *   dataElementId: 'order',
  *   groups: [{ groupField: 'status', groupDirection: 'asc' }],
  *   aggregations: [{ aggregation: 'Count', aggregationField: 'objKey' }]
- * }).subscribe(response => console.log(response.data));
+ * }).subscribe(result => {
+ *   console.log('Total rows:', result.length);
+ *   result.forEach(row => console.log(result.getAggregation(row, 'Count', 'objKey')));
+ * });
  */
 export function getAggregateDataAsObservable(request: AggregationRequest): Observable<AggregationResponse> {
     return from(getAggregateData(request));
