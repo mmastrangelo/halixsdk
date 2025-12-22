@@ -164,14 +164,14 @@ export class AggregationResponse {
      * Get the raw data array.
      * @returns Array of aggregation result rows
      */
-    getData(): AggregationRow[] {
+    public getData(): AggregationRow[] {
         return this.rawData;
     }
 
     /**
      * Get the number of rows in the aggregated results.
      */
-    get length(): number {
+    public get length(): number {
         return this.rawData.length;
     }
 
@@ -180,7 +180,7 @@ export class AggregationResponse {
      * @param index - The row index
      * @returns The row at the specified index, or undefined if out of bounds
      */
-    getRow(index: number): AggregationRow | undefined {
+    public getRow(index: number): AggregationRow | undefined {
         return this.rawData[index];
     }
 
@@ -190,7 +190,7 @@ export class AggregationResponse {
      * @param groupField - The name of the group field
      * @returns The group field value
      */
-    getGroup(row: AggregationRow, groupField: string): any {
+    public getGroup(row: AggregationRow, groupField: string): any {
         return row[groupField];
     }
 
@@ -202,7 +202,7 @@ export class AggregationResponse {
      * @param aggregationField - The field that was aggregated
      * @returns The aggregation value
      */
-    getAggregation(row: AggregationRow, aggregationType: AggregationType | string, aggregationField: string): any {
+    public getAggregation(row: AggregationRow, aggregationType: AggregationType | string, aggregationField: string): any {
         const fieldName = this.getAggregationFieldName(aggregationType, aggregationField);
         return row[fieldName];
     }
@@ -230,7 +230,7 @@ export class AggregationResponse {
      * // Find rows where status is "Draft" and homeLanguage is "English"
      * response.findByGroups({ status: 'Draft', homeLanguage: 'English' })
      */
-    findByGroups(groupFilters: { [groupField: string]: any }): AggregationRow[] {
+    public findByGroups(groupFilters: { [groupField: string]: any }): AggregationRow[] {
         return this.rawData.filter(row => {
             return Object.entries(groupFilters).every(([field, value]) => row[field] === value);
         });
@@ -251,7 +251,7 @@ export class AggregationResponse {
      *   'objKey'
      * )
      */
-    getAggregationValue(
+    public getAggregationValue(
         groupFilters: { [groupField: string]: any },
         aggregationType: AggregationType | string,
         aggregationField: string
@@ -264,7 +264,7 @@ export class AggregationResponse {
      * Iterate over all rows with a callback function.
      * @param callback - Function to execute for each row
      */
-    forEach(callback: (row: AggregationRow, index: number) => void): void {
+    public forEach(callback: (row: AggregationRow, index: number) => void): void {
         this.rawData.forEach(callback);
     }
 
@@ -273,7 +273,7 @@ export class AggregationResponse {
      * @param callback - Function to transform each row
      * @returns New array of transformed values
      */
-    map<T>(callback: (row: AggregationRow, index: number) => T): T[] {
+    public map<T>(callback: (row: AggregationRow, index: number) => T): T[] {
         return this.rawData.map(callback);
     }
 
@@ -282,14 +282,14 @@ export class AggregationResponse {
      * @param predicate - Function to test each row
      * @returns New array of rows that pass the test
      */
-    filter(predicate: (row: AggregationRow, index: number) => boolean): AggregationRow[] {
+    public filter(predicate: (row: AggregationRow, index: number) => boolean): AggregationRow[] {
         return this.rawData.filter(predicate);
     }
 
     /**
      * Make the response iterable for use in for...of loops.
      */
-    [Symbol.iterator](): Iterator<AggregationRow> {
+    public [Symbol.iterator](): Iterator<AggregationRow> {
         return this.rawData[Symbol.iterator]();
     }
 
@@ -298,7 +298,7 @@ export class AggregationResponse {
      * @param groupField - The group field name
      * @returns Array of unique values (excluding null/undefined)
      */
-    getUniqueGroupValues(groupField: string): any[] {
+    public getUniqueGroupValues(groupField: string): any[] {
         const values = new Set<any>();
         this.rawData.forEach(row => {
             const value = row[groupField];
@@ -316,7 +316,7 @@ export class AggregationResponse {
      * @param aggregationField - The field that was aggregated
      * @returns Sum of the aggregation values, or 0 if no valid values
      */
-    sumAggregation(aggregationType: AggregationType | string, aggregationField: string): number {
+    public sumAggregation(aggregationType: AggregationType | string, aggregationField: string): number {
         const fieldName = this.getAggregationFieldName(aggregationType, aggregationField);
         return this.rawData.reduce((sum, row) => {
             const value = row[fieldName];
