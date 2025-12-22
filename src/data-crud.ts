@@ -23,7 +23,6 @@
 import axios from 'axios';
 import { from, Observable, lastValueFrom } from 'rxjs';
 import { sandboxKey, serviceAddress, getAuthToken, userContext } from './sdk-general';
-import { FilterExpression } from './filter-expressions';
 
 // ================================================================================
 // INTERFACES
@@ -90,11 +89,11 @@ export function getObjectAsObservable(dataElementId: string, key: string, fetche
  * @param parentElementId - Parent element ID
  * @param parentKey - Parent object key
  * @param elementId - Child element ID
- * @param filter - Optional filter (see FilterExpression)
+ * @param filter - Optional filter; call `dataexpr_agent` to generate the filter expression.
  * @param fetchedRelationships - Optional relationships to include as nested objects
  * @returns Promise<any[]>
  */
-export async function getRelatedObjects(parentElementId: string, parentKey: string, elementId: string, filter?: FilterExpression, fetchedRelationships?: string[]): Promise<any[]> {
+export async function getRelatedObjects(parentElementId: string, parentKey: string, elementId: string, filter?: string, fetchedRelationships?: string[]): Promise<any[]> {
     if (!getAuthToken) {
         const errorMessage = 'SDK not initialized.';
         console.error(errorMessage);
@@ -131,7 +130,7 @@ export async function getRelatedObjects(parentElementId: string, parentKey: stri
 /**
  * Observable version of getRelatedObjects. See getRelatedObjects for details.
  */
-export function getRelatedObjectsAsObservable(parentElementId: string, parentKey: string, elementId: string, filter?: FilterExpression, fetchedRelationships?: string[]): Observable<any[]> {
+export function getRelatedObjectsAsObservable(parentElementId: string, parentKey: string, elementId: string, filter?: string, fetchedRelationships?: string[]): Observable<any[]> {
     return from(getRelatedObjects(parentElementId, parentKey, elementId, filter, fetchedRelationships));
 }
 
