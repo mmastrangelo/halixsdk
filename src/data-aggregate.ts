@@ -101,13 +101,13 @@ export interface AggregationRequest {
      * The ID of the parent data element that defines the overall scope of records.
      * The dataElementId must be related to this through a foreign key or key array.
      */
-    parentDataElementId?: string;
+    parentDataElementId: string;
 
     /**
      * The key of a parent object that all records must be related to.
      * Works with parentDataElementId to scope results.
      */
-    parentKey?: string;
+    parentKey: string;
 
     /**
      * Optional field to specify the foreign key field on the data element that defines
