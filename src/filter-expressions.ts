@@ -39,8 +39,8 @@
  * | `>=` | Greater than or equal to | `score >= '70'` |
  * | `!>` | Begins with | `name !> 'Jo'` |
  * | `<!` | Ends with | `email <! '@example.com'` |
- * | `<>` | Contains (string or array) | `tags <> 'urgent'` |
- * | `!<>` | Does not contain | `tags !<> 'archived'` |
+ * | `<>` | Contains (case-insensitive) | `notes <> 'important'` or `['A'] <> 'A'` |
+ * | `!<>` | Does not contain (case-insensitive) | `tags !<> 'archived'` |
  * | `<empty> $void` | Value is empty | `notes <empty> $void` |
  * | `!<empty> $void` | Value is not empty | `notes !<empty> $void` |
  * 
@@ -86,7 +86,18 @@
  * 
  * // Page variables
  * "category = '@{page.selectedCategory.value}'"
+ * 
+ * // Page variables with formatting (use generate_tokens tool)
+ * "status = '@{page.filterInput.value | default:All}'"
  * ```
+ * 
+ * ## Notes
+ * - **String literals** must be wrapped in single quotes: `'value'`
+ * - **Attribute references** must not be quoted: `status`, `score`
+ * - **Page/group variables** must be quoted: `'@{page.fieldName}'`, `'@{group.fieldName}'`
+ * - The `<>` and `!<>` operators for contains/substring matching are case-insensitive
+ * - Prefer case-insensitive equality checks (`~`, `!~`) over case-sensitive checks (`=`, `!=`) unless case-sensitivity is required
+ * - Wildcard operators/pattern matching are NOT supported
  */
 export type FilterExpression = string;
 
