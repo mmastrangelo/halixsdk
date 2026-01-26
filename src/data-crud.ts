@@ -87,7 +87,7 @@ export function getObjectAsObservable(dataElementId: string, key: string, fetche
  * Retrieves all objects related to a parent through a schema relationship. Commonly used to get objects belonging to current user/org proxy.
  * 
  * @param parentElementId - Parent element ID
- * @param parentKey - Parent object key; important: this establishes the scope of the query; use the userProxy when dealing with user-specific data; use the orgProxy when dealing with org-specific data
+ * @param parentKey - Parent object key; important: this establishes the scope of the query; use an appropriate scope Key
  * @param elementId - Child element ID
  * @param filter - Optional filter; call `dataexpr_agent` to generate the filter expression.
  * @param fetchedRelationships - Optional relationships to include as nested objects
@@ -142,7 +142,7 @@ export function getRelatedObjectsAsObservable(parentElementId: string, parentKey
  * Saves a related object and establishes relationship to parent. Returns saved object with any server-assigned values (objKey, calculated fields).
  * 
  * @param parentElementId - Parent element ID
- * @param parentKey - Parent object key; important: this establishes the scope of the save operation; use the userProxy when dealing with user-specific data; use the orgProxy when dealing with org-specific data
+ * @param parentKey - Parent object key; important: this establishes the scope of the save operation; use an appropriate scope Key
  * @param elementId - Child element ID for the object being saved
  * @param objectToSave - JSON string of object data
  * @param opts - Optional save options (e.g., bypassValidation)

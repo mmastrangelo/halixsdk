@@ -84,7 +84,7 @@ export interface BaseListDataRequest {
      * The key of an object that all records must be related to.
      * Works with parentDataElementId to scope results.
      * 
-     * Important: this establishes the scope of the query; use the userProxy when dealing with user-specific data; use the orgProxy when dealing with org-specific data
+     * Important: this establishes the scope of the query; use an appropriate scope key
      */
     parentKey?: string;
 
