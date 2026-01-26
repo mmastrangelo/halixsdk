@@ -103,6 +103,7 @@ export interface BaseListDataRequest {
     /** 
      * Filter expression to limit results. Evaluated within the parent key scope.
      * Call `dataexpr_agent` to generate the filter expression.
+     * Must be less than 200 characters.
      */
     filter?: string;
 
