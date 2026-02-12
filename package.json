@@ -1,6 +1,6 @@
 {
   "name": "@halix/action-sdk",
-  "version": "1.0.28",
+  "version": "1.0.30",
   "description": "Halix Platform action SDK",
   "types": "./lib/cjs/types/index.d.ts",
   "main": "./lib/cjs/index.js",
@@ -26,6 +26,7 @@
     "prepack": "npm run build",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "coverage": "vitest run --coverage"
   },
   "repository": {

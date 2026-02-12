@@ -29,23 +29,58 @@ import { serviceAddress, getAuthToken, userContext } from './sdk-general';
  * @throws Error if SDK not initialized or user context not available
  * 
  * @example
- * const preferenceValue = await getPreference('myPreferenceId');
+ * const preferenceValue = await getUserPreference('myPreferenceId');
  */
-export async function getPreference(prefID: string): Promise<any> {
+export async function getUserPreference(prefID: string): Promise<any> {
+    if (!userContext?.user?.objKey) {
+        const errorMessage = 'User context not available. Cannot retrieve user preference value.';
+        console.error(errorMessage);
+        throw new Error(errorMessage);
+    }
+
+    return getPreferenceInternal(prefID, 'user', userContext.user.objKey);
+}
+
+/**
+ * Retrieves a preference value for the current organization.
+ * 
+ * @param prefID - The preference ID to retrieve
+ * @returns Promise<any> - the preference value
+ * @throws Error if SDK not initialized or organization context not available
+ * 
+ * @example
+ * const preferenceValue = await getOrganizationPreference('myPreferenceId');
+ */
+export async function getOrganizationPreference(prefID: string): Promise<any> {
+    if (!userContext?.orgKey) {
+        const errorMessage = 'Organization context not available. Cannot retrieve organization preference value.';
+        console.error(errorMessage);
+        throw new Error(errorMessage);
+    }
+
+    return getPreferenceInternal(prefID, 'organization', userContext.orgKey);
+}
+
+/**
+ * Observable version of getUserPreference. See getUserPreference for details.
+ */
+export function getUserPreferenceAsObservable(prefID: string): Observable<any> {
+    return from(getUserPreference(prefID));
+}
+
+/**
+ * Observable version of getOrganizationPreference. See getOrganizationPreference for details.
+ */
+export function getOrganizationPreferenceAsObservable(prefID: string): Observable<any> {
+    return from(getOrganizationPreference(prefID));
+}
+
+async function getPreferenceInternal(prefID: string, ownerElementID: string, ownerKey: string): Promise<any> {
     if (!getAuthToken) {
         const errorMessage = 'SDK not initialized.';
         console.error(errorMessage);
         throw new Error(errorMessage);
     }
-
-    if (!userContext?.user?.objKey) {
-        const errorMessage = 'User context not available. Cannot retrieve preference value.';
-        console.error(errorMessage);
-        throw new Error(errorMessage);
-    }
-
-    const ownerElementID = 'user';
-    const ownerKey = userContext.user.objKey;
 
     let url = `${serviceAddress}/sysapi/preference/${prefID}/${ownerElementID}/${ownerKey}`;
 
@@ -59,12 +94,3 @@ export async function getPreference(prefID: string): Promise<any> {
 
     return response.data;
 }
-
-/**
- * Observable version of getPreference. See getPreference for details.
- */
-export function getPreferenceAsObservable(prefID: string): Observable<any> {
-    return from(getPreference(prefID));
-}
-
-

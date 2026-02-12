@@ -117,8 +117,10 @@ export {
 
 export {
     // Preference Functions
-    getPreference,
-    getPreferenceAsObservable
+    getUserPreference,
+    getOrganizationPreference,
+    getUserPreferenceAsObservable,
+    getOrganizationPreferenceAsObservable
 } from './preferences';
 
 // ================================================================================
@@ -170,6 +172,22 @@ export {
     getAggregateData,
     getAggregateDataAsObservable
 } from './data-aggregate';
+
+// ================================================================================
+// AI FUNCTIONS
+// ================================================================================
+
+export {
+    // AI Enums
+    LLMProvider,
+
+    // AI Interfaces
+    type AIRequestOptions,
+
+    // AI Functions
+    sendAIMessage,
+    sendAIMessageAsObservable
+} from './ai';
 
 // ================================================================================
 // UTILITY FUNCTIONS
