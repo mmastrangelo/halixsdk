@@ -15,7 +15,7 @@
 
 import axios from 'axios';
 import { from, Observable, lastValueFrom } from 'rxjs';
-import { serviceAddress, getAuthToken, userContext } from './sdk-general';
+import { serviceAddress, getAuthToken, userContext, sandboxKey } from './sdk-general';
 
 // ================================================================================
 // PREFERENCE RETRIEVAL FUNCTIONS
@@ -90,7 +90,15 @@ async function getPreferenceInternal(prefID: string, ownerElementID: string, own
 
     let response = await axios.get(url, {
         headers: { "Authorization": `Bearer ${authToken}` },
+        params: { sandboxKey },
     });
 
-    return response.data;
+    let data = response.data;
+
+    // Strip surrounding quotes if the value is returned as a JSON-encoded string
+    if (typeof data === 'string' && data.length >= 2 && data.startsWith('"') && data.endsWith('"')) {
+        data = data.slice(1, -1);
+    }
+
+    return data;
 }

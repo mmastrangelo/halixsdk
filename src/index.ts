@@ -178,9 +178,6 @@ export {
 // ================================================================================
 
 export {
-    // AI Enums
-    LLMProvider,
-
     // AI Interfaces
     type AIRequestOptions,
 
