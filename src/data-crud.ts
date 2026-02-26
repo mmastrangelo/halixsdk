@@ -134,6 +134,55 @@ export function getRelatedObjectsAsObservable(parentElementId: string, parentKey
     return from(getRelatedObjects(parentElementId, parentKey, elementId, filter, fetchedRelationships));
 }
 
+/**
+ * Retrieves all objects for a data element that the current user has access to.
+ *
+ * @param dataElementId - Data element ID
+ * @param filter - Optional filter; call `dataexpr_agent` to generate the filter expression. Must be less than 200 characters.
+ * @param fetchedRelationships - Optional relationships to include as nested objects
+ * @returns Promise<any[]>
+ */
+export async function getAccessibleObjects(dataElementId: string, filter?: string, fetchedRelationships?: string[]): Promise<any[]> {
+    if (!getAuthToken) {
+        const errorMessage = 'SDK not initialized.';
+        console.error(errorMessage);
+        throw new Error(errorMessage);
+    }
+
+    let params;
+    if (filter || fetchedRelationships) {
+        let p = {};
+        if (filter) {
+            (<any>p).filter = filter;
+        }
+        if (fetchedRelationships) {
+            (<any>p).fetchedRelationships = fetchedRelationships.join(",");
+        }
+
+        params = new URLSearchParams(p);
+    }
+
+    let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${dataElementId}`;
+
+    let authToken = await lastValueFrom(getAuthToken());
+
+    console.log("Sending GET request to " + url + " with token " + authToken);
+
+    let response = await axios.get(url, {
+        headers: { "Authorization": `Bearer ${authToken}` },
+        params: params,
+    });
+
+    return response.data;
+}
+
+/**
+ * Observable version of getAccessibleObjects. See getAccessibleObjects for details.
+ */
+export function getAccessibleObjectsAsObservable(dataElementId: string, filter?: string, fetchedRelationships?: string[]): Observable<any[]> {
+    return from(getAccessibleObjects(dataElementId, filter, fetchedRelationships));
+}
+
 // ================================================================================
 // DATA SAVE FUNCTIONS
 // ================================================================================
