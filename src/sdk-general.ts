@@ -100,6 +100,13 @@ export interface UserContext {
     orgProxyKey: string;
     orgKey: string;
     userProxyKey: string;
+    navigationContext: {
+        navLevel: "organization" | "user";
+        userProxyElementId: string;
+        orgProxyElementId: string;
+        userProxyRequired: boolean;
+        orgProxyKey?: string;        
+    }
 }
 
 /**

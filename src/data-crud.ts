@@ -140,9 +140,10 @@ export function getRelatedObjectsAsObservable(parentElementId: string, parentKey
  * @param dataElementId - Data element ID
  * @param filter - Optional filter; call `dataexpr_agent` to generate the filter expression. Must be less than 200 characters.
  * @param fetchedRelationships - Optional relationships to include as nested objects
+ * @param applyContext - Optional flag to apply navigation context scoping. When true, navigation context is read from UserContext.navigationContext and results are limited by the navigation context org proxy.
  * @returns Promise<any[]>
  */
-export async function getAccessibleObjects(dataElementId: string, filter?: string, fetchedRelationships?: string[]): Promise<any[]> {
+export async function getAccessibleObjects(dataElementId: string, filter?: string, fetchedRelationships?: string[], applyContext?: boolean): Promise<any[]> {
     if (!getAuthToken) {
         const errorMessage = 'SDK not initialized.';
         console.error(errorMessage);
@@ -150,13 +151,28 @@ export async function getAccessibleObjects(dataElementId: string, filter?: strin
     }
 
     let params;
-    if (filter || fetchedRelationships) {
+    if (filter || fetchedRelationships || applyContext) {
         let p = {};
         if (filter) {
             (<any>p).filter = filter;
         }
         if (fetchedRelationships) {
             (<any>p).fetchedRelationships = fetchedRelationships.join(",");
+        }
+        if (applyContext) {
+            if (!userContext?.navigationContext) {
+                throw new Error("navigationContext is required but not available on userContext");
+            }
+
+            const navigationContext = userContext.navigationContext as any;
+            const navKey = navigationContext.navKey ?? navigationContext.navigationKey ?? navigationContext.key ?? navigationContext.objKey;
+            if (!navKey) {
+                throw new Error("navigationContext is missing navKey");
+            }
+
+            const userProxyKey = userContext.userProxyKey ?? "";
+            const orgProxyKey = userContext.orgProxyKey ?? navigationContext.orgProxyKey ?? "";
+            (<any>p).applyContext = `${navKey}|${userProxyKey}|${orgProxyKey}`;
         }
 
         params = new URLSearchParams(p);
@@ -179,8 +195,8 @@ export async function getAccessibleObjects(dataElementId: string, filter?: strin
 /**
  * Observable version of getAccessibleObjects. See getAccessibleObjects for details.
  */
-export function getAccessibleObjectsAsObservable(dataElementId: string, filter?: string, fetchedRelationships?: string[]): Observable<any[]> {
-    return from(getAccessibleObjects(dataElementId, filter, fetchedRelationships));
+export function getAccessibleObjectsAsObservable(dataElementId: string, filter?: string, fetchedRelationships?: string[], applyContext?: boolean): Observable<any[]> {
+    return from(getAccessibleObjects(dataElementId, filter, fetchedRelationships, applyContext));
 }
 
 // ================================================================================
