@@ -18,6 +18,49 @@
  * - Retrieve all objects related to a parent object
  * - Save a single object
  * - Delete a single or multiple objects
+ *
+ * @usage
+ * ## When to Use
+ * - **Read objects without specifying parent scope** → `getAccessibleObjects` (most common read)
+ * - **Get single object by key** → `getObject`
+ * - **Get related objects (<50)** → `getRelatedObjects`
+ * - **Create/update single object** → `saveRelatedObject`
+ * - **Delete single object** → `deleteRelatedObject`
+ *
+ * ## When NOT to Use
+ * - **Large lists (100+)** → use lists skill with `getListData`
+ * - **Bulk updates** → use lists skill with `massEdit`
+ * - **Aggregations** → use data-aggregate skill
+ *
+ * ## Key Functions
+ * | Function | Use For |
+ * |----------|---------|
+ * | `getAccessibleObjects` | Read objects the current user can access (no parent scope needed) |
+ * | `getObject` | Single object by key |
+ * | `getRelatedObjects` | Children of a parent (small collections) |
+ * | `saveRelatedObject` | Create or update one object |
+ * | `deleteRelatedObject` | Delete one object |
+ *
+ * @example
+ * // Get all accessible recipes
+ * const recipes = await hx.getAccessibleObjects('recipe');
+ *
+ * @example
+ * // Get single recipe
+ * const recipe = await hx.getObject('recipe', recipeKey);
+ *
+ * @example
+ * // Get ingredients (small collection)
+ * const ingredients = await hx.getRelatedObjects(
+ *   'recipe', recipeKey, 'ingredient'
+ * );
+ *
+ * @example
+ * // Save new ingredient
+ * await hx.saveRelatedObject(
+ *   'recipe', recipeKey, 'ingredient',
+ *   { name: 'Salt', amount: '1 tsp' }
+ * );
  */
 
 import axios from 'axios';
@@ -165,14 +208,13 @@ export async function getAccessibleObjects(dataElementId: string, filter?: strin
             }
 
             const navigationContext = userContext.navigationContext as any;
-            const navKey = navigationContext.navKey ?? navigationContext.navigationKey ?? navigationContext.key ?? navigationContext.objKey;
-            if (!navKey) {
-                throw new Error("navigationContext is missing navKey");
+            if (!navigationContext.navigationKey) {
+                throw new Error("navigationContext is missing navigationKey");
             }
 
             const userProxyKey = userContext.userProxyKey ?? "";
             const orgProxyKey = userContext.orgProxyKey ?? navigationContext.orgProxyKey ?? "";
-            (<any>p).applyContext = `${navKey}|${userProxyKey}|${orgProxyKey}`;
+            (<any>p).applyContext = `${navigationContext.navigationKey}|${userProxyKey}|${orgProxyKey}`;
         }
 
         params = new URLSearchParams(p);
