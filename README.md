@@ -91,6 +91,7 @@ This action pattern is typical for use in Halix’s Lambda-style runtime environ
 | `saveRelatedObject(...)` / `saveRelatedObjectAsObservable(...)` | Save objects and relationships |
 | `deleteRelatedObject(...)` / `deleteRelatedObjectAsObservable(...)` | Delete a single related object |
 | `deleteRelatedObjects(...)` / `deleteRelatedObjectsAsObservable(...)` | Delete multiple related objects (uses `keys` query param) |
+| `submitStandalonePayment(...)` / `submitStandalonePaymentAsObservable(...)` | Finalize a payment from a gateway preauth result |
 | `prepareSuccessResponse(...)` | Create a success response |
 | `prepareErrorResponse(...)` | Create an error response |
 
@@ -109,6 +110,36 @@ These helpers simplify working with content resources and file uploads.
 | `saveResource(...)` / `saveResourceAsObservable(...)` | Persist a content resource |
 | `sendFileContents(resourceKey, file, publicFlag)` / `sendFileContentsAsObservable(...)` | Upload file contents (multipart/form-data) to a content resource |
 | `createOrUpdateResource(resourceKey?, file, publicFlag, resourceType, tags)` / `createOrUpdateResourceAsObservable(...)` | Create or update a resource and upload the file in one call |
+
+---
+
+## Payment Helpers
+
+Use `submitStandalonePayment(...)` after UI code has already produced a gateway preauth result and you need action code to finish the payment through the platform backend.
+
+```js
+const result = await hx.submitStandalonePayment({
+  payerKey: hx.userContext.userProxyKey,
+  payeeKey: hx.userContext.orgKey,
+  paymentAmount: 49.99,
+  preAuthResult,
+  hostObjectKey: invoice.objKey,
+  hostElementId: 'clientInvoice',
+  hostAttributeId: 'paymentStatus',
+  generateTransaction: true,
+  chargeDescription: 'Invoice payment'
+});
+
+console.log(result.paymentKey, result.paymentSummary);
+```
+
+Notes:
+- `organizationKey` is taken from `userContext.orgKey`, and `payerType` is fixed to `SolutionUserProxy`.
+- The SDK assumes a Stripe preauth result and injects `paymentGateway: 'stripe'` before sending the request.
+- Extra fields on `preAuthResult` are still passed through because Stripe completion may require gateway-specific values such as token or saved-payment-method identifiers.
+- `hostObjectKey`, `hostElementId`, and `hostAttributeId` must point at a real solution-defined object field that the backend can update with the returned payment summary.
+- `bankAccountPayment` is optional in the SDK wrapper; if omitted it is inferred from common ACH payment method values in the preauth result.
+- `payeeKey` should be the organization receiving the payment.
 
 ---
 

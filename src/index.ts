@@ -176,6 +176,21 @@ export {
 } from './data-aggregate';
 
 // ================================================================================
+// PAYMENT FUNCTIONS
+// ================================================================================
+
+export {
+    // Interfaces
+    type GatewayPaymentPreauthResult,
+    type StandalonePaymentRequest,
+    type StandalonePaymentResult,
+
+    // Functions
+    submitStandalonePayment,
+    submitStandalonePaymentAsObservable
+} from './payments';
+
+// ================================================================================
 // AI FUNCTIONS
 // ================================================================================
 
