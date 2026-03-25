@@ -269,11 +269,50 @@ export interface MassChangeResponse {
 /**
  * Retrieves paginated list data. Supports authenticated/public access, filtering, sorting, and binary search.
  * 
+ * Common usage:
+ * - For most custom-element list UIs, start with only `dataElementId`, pagination fields,
+ *   and `displayFields`.
+ * - Omit `parentDataElementId` and `parentKey` when you want the records the current user
+ *   can already access.
+ * - Add `parentDataElementId` and `parentKey` only when the list must be anchored to a
+ *   specific parent record.
+ * - Most callers should omit `options`. Use `options.search` only for binary-search
+ *   navigation scenarios, and use `options.bypassTotal` only when you explicitly do not
+ *   need the total count.
+ * 
+ * Request shape:
+ * - `dataElementId` (required): root data element to retrieve
+ * - `pageNumber` / `pageSize` (optional): pagination
+ * - `displayFields` (optional): fields to populate in returned objects
+ * - `sort` (optional): sort fields such as `[{ attributeId: 'name' }]`
+ * - `filter` (optional): filter expression
+ * - `parentDataElementId` / `parentKey` (optional): explicit parent scope
+ * 
  * @param request - List configuration including dataElementId, parentDataElementId, parentKey, pagination, sort, filter
  * @param options - Optional: isPublic, bypassTotal, search
  * @returns Promise<ListDataResponse> with data array, total count, pageNumber
  * 
  * @example
+ * // Most common case: one page of records the current user can access.
+ * const response = await getListData({
+ *   dataElementId: 'student',
+ *   pageNumber: 1,
+ *   pageSize: 10,
+ *   displayFields: ['name', 'studentNumber', 'email', 'grade']
+ * });
+ * 
+ * @example
+ * // Custom element pagination with an optional sort.
+ * const response = await getListData({
+ *   dataElementId: 'student',
+ *   pageNumber: currentPage,
+ *   pageSize: 10,
+ *   displayFields: ['name', 'studentNumber', 'email', 'grade'],
+ *   sort: [{ attributeId: 'name' }]
+ * });
+ * 
+ * @example
+ * // Explicit parent scoping when the list must be anchored to a specific parent.
  * const listData = await getListData({
  *   dataElementId: 'customer',
  *   parentDataElementId: 'company',
@@ -282,6 +321,24 @@ export interface MassChangeResponse {
  *   pageSize: 50,
  *   displayFields: ['firstName', 'lastName', 'email']
  * });
+ * 
+ * @example
+ * // options is rarely needed; omit it unless you need one of these behaviors.
+ * const response = await getListData(
+ *   {
+ *     dataElementId: 'student',
+ *     pageNumber: 1,
+ *     pageSize: 10,
+ *     displayFields: ['name']
+ *   },
+ *   {
+ *     search: {
+ *       attributeId: 'name',
+ *       value: 'Ada',
+ *       total: 100
+ *     }
+ *   }
+ * );
  */
 export async function getListData(request: PagedListDataRequest, options?: ListDataOptions): Promise<ListDataResponse> {
 
