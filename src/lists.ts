@@ -77,20 +77,24 @@ export interface BaseListDataRequest {
      * The dataElementId must be related to this through a foreign key or key array.
      * Works with parentKey to scope results. This is often an organization proxy
      * or user proxy element, but not necessarily so.
+     * 
+     * Note: in most cases, this can be omitted in which case the system will automatically
+     * return only the records the user can access.
      */
-    parentDataElementId: string;
+    parentDataElementId?: string;
 
     /** 
      * The key of an object that all records must be related to.
      * Works with parentDataElementId to scope results.
      * 
-     * Important: this establishes the scope of the query; use an appropriate scope key
+     * Note: in most cases, this can be omitted in which case the system will automatically
+     * return only the records the user can access.
      */
     parentKey?: string;
 
     /** 
      * Optional field to specify the foreign key field on the root element that defines
-     * the relationship to the parent. If omitted, a derived key is assumed.
+     * the relationship to the parent. If omitted, a derived key is assumed. Works with parentDataElementId to scope results.
      */
     parentKeyField?: string;
 
