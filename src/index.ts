@@ -66,8 +66,8 @@ export {
     getRelatedObjectsAsObservable,
     getAccessibleObjects,
     getAccessibleObjectsAsObservable,
-    getObjectsByKeys,
-    getObjectsByKeysAsObservable,
+    getObjects,
+    getObjectsAsObservable,
     
     // Data Save
     saveObject,

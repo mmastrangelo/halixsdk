@@ -7,8 +7,8 @@ import {
     getObjectAsObservable,
     getRelatedObjects,
     getRelatedObjectsAsObservable,
-    getObjectsByKeys,
-    getObjectsByKeysAsObservable,
+    getObjects,
+    getObjectsAsObservable,
     saveObject,
     saveObjectAsObservable,
     saveRelatedObject,
@@ -102,10 +102,10 @@ describe('getRelatedObjects / getRelatedObjectsAsObservable', () => {
     });
 });
 
-describe('getObjectsByKeys / getObjectsByKeysAsObservable', () => {
+describe('getObjects / getObjectsAsObservable', () => {
     it('calls scoped objects endpoint with keys query', async () => {
         mockedAxios.get.mockResolvedValueOnce({ data: [{ objKey: 'k1' }] });
-        const data = await getObjectsByKeys('el', ['k1', 'k2']);
+        const data = await getObjects('el', ['k1', 'k2']);
         expect(mockedAxios.get).toHaveBeenCalledTimes(1);
         const [url, config] = mockedAxios.get.mock.calls[0];
         expect(url).toBe('https://svc/schema/sandboxes/sb/el');
@@ -116,7 +116,7 @@ describe('getObjectsByKeys / getObjectsByKeysAsObservable', () => {
 
     it('passes filter and fetchedRelationships with keys', async () => {
         mockedAxios.get.mockResolvedValueOnce({ data: [{ objKey: 'k1' }] });
-        await getObjectsByKeys('el', ['k1', 'k2'], 'status=="Active"', ['rel1', 'rel2']);
+        await getObjects('el', ['k1', 'k2'], 'status=="Active"', ['rel1', 'rel2']);
         const [, config] = mockedAxios.get.mock.calls[0];
         const qs = String(config.params);
         expect(qs).toContain('filter=status%3D%3D%22Active%22');
@@ -126,7 +126,7 @@ describe('getObjectsByKeys / getObjectsByKeysAsObservable', () => {
 
     it('passes applyContext with keys', async () => {
         mockedAxios.get.mockResolvedValueOnce({ data: [{ objKey: 'k1' }] });
-        await getObjectsByKeys('el', ['k1'], undefined, undefined, true);
+        await getObjects('el', ['k1'], undefined, undefined, true);
         const [, config] = mockedAxios.get.mock.calls[0];
         expect(String(config.params)).toContain('applyContext=');
         expect(String(config.params)).toContain('nav');
@@ -136,7 +136,7 @@ describe('getObjectsByKeys / getObjectsByKeysAsObservable', () => {
 
     it('observable wrapper resolves the same array', async () => {
         mockedAxios.get.mockResolvedValueOnce({ data: [{ objKey: 'k1' }] });
-        const arr = await lastValueFrom(getObjectsByKeysAsObservable('el', ['k1']));
+        const arr = await lastValueFrom(getObjectsAsObservable('el', ['k1']));
         expect(arr).toEqual([{ objKey: 'k1' }]);
     });
 });

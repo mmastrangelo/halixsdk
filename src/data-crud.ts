@@ -22,7 +22,7 @@
  * @usage
  * ## When to Use
  * - **Read objects without specifying parent scope** → `getAccessibleObjects` (most common read)
- * - **Read specific accessible objects by key list** → `getObjectsByKeys`
+ * - **Read specific accessible objects by key list** → `getObjects`
  * - **Get single object by key** → `getObject`
  * - **Get related objects (<50)** → `getRelatedObjects`
  * - **Create/update single object** → `saveObject`
@@ -37,7 +37,7 @@
  * | Function | Use For |
  * |----------|---------|
  * | `getAccessibleObjects` | Read objects the current user can access (no parent scope needed) |
- * | `getObjectsByKeys` | Read accessible objects from a specific key list |
+ * | `getObjects` | Read accessible objects from a specific key list |
  * | `getObject` | Single object by key |
  * | `getRelatedObjects` | Children of a parent (small collections) |
  * | `saveObject` | Create or update one object |
@@ -50,7 +50,7 @@
  *
  * @example
  * // Get accessible recipes from a known key list
- * const recipes = await hx.getObjectsByKeys('recipe', recipeKeys);
+ * const recipes = await hx.getObjects('recipe', recipeKeys);
  *
  * @example
  * // Get single recipe
@@ -245,7 +245,7 @@ export function getAccessibleObjectsAsObservable(dataElementId: string, filter?:
  * @param applyContext - Optional flag to apply navigation context scoping. When true, navigation context is read from UserContext.navigationContext and results are limited by the navigation context org proxy.
  * @returns Promise<any[]>
  */
-export async function getObjectsByKeys(dataElementId: string, keys: string[], filter?: string, fetchedRelationships?: string[], applyContext?: boolean): Promise<any[]> {
+export async function getObjects(dataElementId: string, keys: string[], filter?: string, fetchedRelationships?: string[], applyContext?: boolean): Promise<any[]> {
     if (!getAuthToken) {
         const errorMessage = 'SDK not initialized.';
         console.error(errorMessage);
@@ -269,10 +269,10 @@ export async function getObjectsByKeys(dataElementId: string, keys: string[], fi
 }
 
 /**
- * Observable version of getObjectsByKeys. See getObjectsByKeys for details.
+ * Observable version of getObjects. See getObjects for details.
  */
-export function getObjectsByKeysAsObservable(dataElementId: string, keys: string[], filter?: string, fetchedRelationships?: string[], applyContext?: boolean): Observable<any[]> {
-    return from(getObjectsByKeys(dataElementId, keys, filter, fetchedRelationships, applyContext));
+export function getObjectsAsObservable(dataElementId: string, keys: string[], filter?: string, fetchedRelationships?: string[], applyContext?: boolean): Observable<any[]> {
+    return from(getObjects(dataElementId, keys, filter, fetchedRelationships, applyContext));
 }
 
 // ================================================================================
