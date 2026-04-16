@@ -76,6 +76,8 @@ export {
     saveRelatedObjectAsObservable,
     
     // Data Delete
+    deleteObject,
+    deleteObjectAsObservable,
     deleteRelatedObject,
     deleteRelatedObjectAsObservable,
     deleteRelatedObjects,
@@ -98,7 +100,9 @@ export {
     sendFileContents,
     sendFileContentsAsObservable,
     createOrUpdateResource,
-    createOrUpdateResourceAsObservable
+    createOrUpdateResourceAsObservable,
+    downloadResource,
+    downloadResourceAsObservable
 } from './content';
 
 // ================================================================================
