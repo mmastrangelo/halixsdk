@@ -26,7 +26,7 @@
  * - **Get single object by key** → `getObject`
  * - **Get related objects (<50)** → `getRelatedObjects`
  * - **Create/update single object** → `saveObject`
- * - **Delete single object** → `deleteRelatedObject`
+ * - **Delete single object** → `deleteObject`
  *
  * ## When NOT to Use
  * - **Large lists (100+)** → use lists skill with `getListData`
@@ -42,7 +42,8 @@
  * | `getRelatedObjects` | Children of a parent (small collections) |
  * | `saveObject` | Create or update one object |
  * | `saveRelatedObject` | Create or update one object and establish relationship to a parent |
- * | `deleteRelatedObject` | Delete one object |
+ * | `deleteObject` | Delete one object without parent scope |
+ * | `deleteRelatedObject` | Delete one related object |
  *
  * @example
  * // Get all accessible recipes
@@ -75,6 +76,10 @@
  *   'recipe', recipeKey, 'ingredient',
  *   { name: 'Salt', amount: '1 tsp' }
  * );
+ *
+ * @example
+ * // Delete a recipe
+ * await hx.deleteObject('recipe', recipeKey);
  */
 
 import axios from 'axios';
@@ -294,7 +299,7 @@ export async function saveObject(dataElementId: string, objectToSave: SaveBody, 
         throw new Error(errorMessage);
     }
 
-    const queryString = buildSaveQueryString(opts);
+    const queryString = buildSaveQueryString(opts, true);
     let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${dataElementId}?${queryString}`;
 
     let authToken = await lastValueFrom(getAuthToken());
@@ -356,6 +361,42 @@ export function saveRelatedObjectAsObservable(parentElementId: string, parentKey
 // ================================================================================
 // DATA DELETE FUNCTIONS
 // ================================================================================
+
+/**
+ * Deletes a single object without requiring parent scope.
+ * 
+ * @returns Promise<boolean> - true if successful
+ */
+export async function deleteObject(dataElementId: string, key: string): Promise<boolean> {
+
+    if (!userContext) {
+        throw new Error("userContext is required but not available; check that the initialize function has been called");
+    }
+
+    if (!getAuthToken) {
+        const errorMessage = 'SDK not initialized.';
+        console.error(errorMessage);
+        throw new Error(errorMessage);
+    }
+
+    let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${dataElementId}/${key}`;
+    let authToken = await lastValueFrom(getAuthToken());
+
+    console.log("Sending DELETE request to " + url + " with token " + authToken);
+
+    let response = await axios.delete(url, {
+        headers: { "Authorization": `Bearer ${authToken}` },
+    });
+
+    return response.status === 204;
+}
+
+/**
+ * Observable version of deleteObject. See deleteObject for details.
+ */
+export function deleteObjectAsObservable(dataElementId: string, key: string): Observable<boolean> {
+    return from(deleteObject(dataElementId, key));
+}
 
 /**
  * Deletes a single object related to a parent.
@@ -449,18 +490,7 @@ function buildAccessibleObjectsParams(filter?: string, fetchedRelationships?: st
             (<any>p).keys = keys.join(",");
         }
         if (applyContext) {
-            if (!userContext?.navigationContext) {
-                throw new Error("navigationContext is required but not available on userContext");
-            }
-
-            const navigationContext = userContext.navigationContext as any;
-            if (!navigationContext.navigationKey) {
-                throw new Error("navigationContext is missing navigationKey");
-            }
-
-            const userProxyKey = userContext.userProxyKey ?? "";
-            const orgProxyKey = userContext.orgProxyKey ?? navigationContext.orgProxyKey ?? "";
-            (<any>p).applyContext = `${navigationContext.navigationKey}|${userProxyKey}|${orgProxyKey}`;
+            (<any>p).applyContext = buildApplyContextParamValue(true);
         }
 
         params = new URLSearchParams(p);
@@ -469,7 +499,7 @@ function buildAccessibleObjectsParams(filter?: string, fetchedRelationships?: st
     return params;
 }
 
-function buildSaveQueryString(opts?: SaveOptions): string {
+function buildSaveQueryString(opts?: SaveOptions, includeApplyContext?: boolean): string {
     const params = new URLSearchParams();
     params.set("bypassValidation", opts?.bypassValidation === false ? "false" : "true");
 
@@ -477,5 +507,29 @@ function buildSaveQueryString(opts?: SaveOptions): string {
         params.set("fetchedRelationships", opts.fetchedRelationships.join(","));
     }
 
+    const applyContext = includeApplyContext ? buildApplyContextParamValue(false) : undefined;
+    if (applyContext) {
+        params.set("applyContext", applyContext);
+    }
+
     return params.toString();
+}
+
+function buildApplyContextParamValue(requireNavigationContext: boolean): string | undefined {
+    if (!userContext?.navigationContext) {
+        if (requireNavigationContext) {
+            throw new Error("navigationContext is required but not available on userContext");
+        }
+
+        return undefined;
+    }
+
+    const navigationContext = userContext.navigationContext as any;
+    if (!navigationContext.navigationKey) {
+        throw new Error("navigationContext is missing navigationKey");
+    }
+
+    const userProxyKey = userContext.userProxyKey ?? "";
+    const orgProxyKey = userContext.orgProxyKey ?? navigationContext.orgProxyKey ?? "";
+    return `${navigationContext.navigationKey}|${userProxyKey}|${orgProxyKey}`;
 }

@@ -15,6 +15,7 @@
  * Key features:
  * - Retrieve content resources (images, documents, etc.)
  * - Upload/save content resources (images, documents, etc.)
+ * - Download file resources in the browser (e.g. as a button click handler)
  */
 
 import axios from 'axios';
@@ -232,5 +233,69 @@ export async function createOrUpdateResource(resourceKey: string | null, fileToU
  */
 export function createOrUpdateResourceAsObservable(resourceKey: string | null, fileToUpload: File | Blob, publicFlag: boolean, resourceType: string, tags: string[]): Observable<ContentResource> {
     return from(createOrUpdateResource(resourceKey, fileToUpload, publicFlag, resourceType, tags));
+}
+
+/**
+ * Fetches a file resource from the Halix content service and returns it as a `Blob` along with
+ * the filename derived from the `Content-Disposition` response header (falling back to
+ * `resourceKey` when the header is absent).
+ *
+ * This function is environment-agnostic: it performs only the authenticated HTTP fetch and leaves
+ * all presentation logic to the caller.
+ *
+ * **Browser download example** — trigger the native Save dialog from a click handler:
+ * ```js
+ * button.addEventListener('click', async () => {
+ *     const { blob, fileName } = await downloadResource(recipe.attachmentKey);
+ *     const url = URL.createObjectURL(blob);
+ *     const a = document.createElement('a');
+ *     a.href = url;
+ *     a.download = fileName;
+ *     a.click();
+ *     URL.revokeObjectURL(url);
+ * });
+ * ```
+ *
+ * **Node.js example** — write the blob to disk:
+ * ```js
+ * const { blob } = await downloadResource(recipe.attachmentKey);
+ * const buffer = Buffer.from(await blob.arrayBuffer());
+ * fs.writeFileSync('attachment.pdf', buffer);
+ * ```
+ *
+ * @param resourceKey - Key of the content resource to fetch
+ * @returns Promise resolving to `{ blob, fileName }`
+ */
+export async function downloadResource(resourceKey: string): Promise<{ blob: Blob; fileName: string }> {
+    if (!getAuthToken) {
+        const errorMessage = 'SDK not initialized.';
+        console.error(errorMessage);
+        throw new Error(errorMessage);
+    }
+
+    const url = `${serviceAddress}/filecontent/${sandboxKey}/${resourceKey}`;
+    const authToken = await lastValueFrom(getAuthToken());
+
+    console.log("Sending GET request to " + url + " with token " + authToken);
+
+    const response = await axios.get(url, {
+        headers: { "Authorization": `Bearer ${authToken}` },
+        responseType: 'blob',
+    });
+
+    const blob: Blob = response.data;
+
+    const disposition: string = response.headers['content-disposition'] ?? '';
+    const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+    const fileName = (match?.[1] ?? '').replace(/['"]/g, '') || resourceKey;
+
+    return { blob, fileName };
+}
+
+/**
+ * Observable version of downloadResource. See downloadResource for details.
+ */
+export function downloadResourceAsObservable(resourceKey: string): Observable<{ blob: Blob; fileName: string }> {
+    return from(downloadResource(resourceKey));
 }
 
