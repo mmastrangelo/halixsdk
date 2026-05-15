@@ -199,6 +199,22 @@ export {
 } from './payments';
 
 // ================================================================================
+// INVOICE FUNCTIONS
+// ================================================================================
+
+export {
+    type InvoiceDueItem,
+    type PayerInvoiceGroup,
+    type ReminderMatchCriteria,
+    type PaymentReminderRecord,
+    type ChannelCoverage,
+    getEnabledPaymentReminders,
+    getInvoicesMatchingReminder,
+    listEnrolledOrganizations,
+    getReminderDeliveryCoverage
+} from './invoices';
+
+// ================================================================================
 // AI FUNCTIONS
 // ================================================================================
 
