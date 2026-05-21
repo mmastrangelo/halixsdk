@@ -55,6 +55,7 @@ export interface PaymentReminderRecord {
     sandboxKey: string;
     name: string;
     enabled: boolean;
+    previewMode?: boolean;
     channel: 'email' | 'sms' | 'both';
     emailSubject?: string;
     emailBody?: string;

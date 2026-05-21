@@ -157,6 +157,10 @@ export interface NotificationConfig {
     params: Record<string, any>;
     /** Correlates generated notification history with a payment reminder or other producer-owned source. */
     reminderKey?: string;
+    /** When true, render/log recipients but skip actual channel dispatch and quota tracking. */
+    previewMode?: boolean;
+    /** Outstanding balance copied to generated recipient history rows. */
+    totalOutstandingAmount?: number;
     /** Per-send email content override. `summary` is used as the email subject. */
     emailContentOverride?: { summary?: string; content?: string; html?: string };
     /** Per-send SMS content override. */
