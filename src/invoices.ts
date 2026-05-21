@@ -21,8 +21,12 @@ export interface InvoiceDueItem {
     /** Invoice (sales transaction) key. */
     invoiceKey: string;
     invoiceNumber: string;
+    /** User-facing description, e.g. "Down payment on Tuition Kindergarten SY26-27". */
+    description: string;
     /** Due date — either the invoice's top-level dueDate or an installment's dueDate. */
     dueDate: string;
+    /** Due date formatted for message display as M/d/yyyy. */
+    dueDateDisplay: string;
     /** When the matching due date came from an installment, the 0-based index in installmentItems. */
     installmentIndex?: number;
     /** Amount remaining for this invoice/installment. */
