@@ -20,6 +20,9 @@ import { getObjects } from './data-crud';
 export interface InvoiceDueItem {
     /** Invoice (sales transaction) key. */
     invoiceKey: string;
+    /** User-facing invoice ID from the SalesTransaction id field. */
+    invoiceId: string;
+    /** Backwards-compatible alias for invoiceId. */
     invoiceNumber: string;
     /** User-facing description, e.g. "Down payment on Tuition Kindergarten SY26-27". */
     description: string;
