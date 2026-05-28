@@ -98,6 +98,8 @@ export interface SaveOptions {
     bypassValidation?: boolean;
     /** Optional relationships to include as nested objects in the saved response */
     fetchedRelationships?: string[];
+    /** Optional flag to apply the current navigation context to the save request. */
+    applyContext?: boolean;
 }
 
 type SaveBody = string | object;
@@ -299,7 +301,7 @@ export async function saveObject(dataElementId: string, objectToSave: SaveBody, 
         throw new Error(errorMessage);
     }
 
-    const queryString = buildSaveQueryString(opts, true);
+    const queryString = buildSaveQueryString(opts);
     let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${dataElementId}?${queryString}`;
 
     let authToken = await lastValueFrom(getAuthToken());
@@ -499,7 +501,7 @@ function buildAccessibleObjectsParams(filter?: string, fetchedRelationships?: st
     return params;
 }
 
-function buildSaveQueryString(opts?: SaveOptions, includeApplyContext?: boolean): string {
+function buildSaveQueryString(opts?: SaveOptions): string {
     const params = new URLSearchParams();
     params.set("bypassValidation", opts?.bypassValidation === false ? "false" : "true");
 
@@ -507,7 +509,7 @@ function buildSaveQueryString(opts?: SaveOptions, includeApplyContext?: boolean)
         params.set("fetchedRelationships", opts.fetchedRelationships.join(","));
     }
 
-    const applyContext = includeApplyContext ? buildApplyContextParamValue(false) : undefined;
+    const applyContext = opts?.applyContext ? buildApplyContextParamValue(true) : undefined;
     if (applyContext) {
         params.set("applyContext", applyContext);
     }

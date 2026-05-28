@@ -168,6 +168,17 @@ describe('saveObject / saveObjectAsObservable', () => {
         expect(url).toBe('https://svc/schema/sandboxes/sb/el?bypassValidation=true&fetchedRelationships=r1%2Cr2');
     });
 
+    it('includes applyContext only when explicitly requested', async () => {
+        mockedAxios.post.mockResolvedValueOnce({ data: { saved: true } });
+        await saveObject('el', { a: 1 }, { applyContext: true });
+        const [url] = mockedAxios.post.mock.calls[0];
+        expect(url).toContain('bypassValidation=true');
+        expect(url).toContain('applyContext=');
+        expect(url).toContain('nav');
+        expect(url).toContain('up1');
+        expect(url).toContain('scopeKeyPath123');
+    });
+
     it('observable wrapper resolves saved object', async () => {
         mockedAxios.post.mockResolvedValueOnce({ data: { saved: 'ok' } });
         const res = await lastValueFrom(saveObjectAsObservable('e', { a: 1 }));
