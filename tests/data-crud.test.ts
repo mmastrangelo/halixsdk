@@ -13,6 +13,8 @@ import {
     saveObjectAsObservable,
     saveRelatedObject,
     saveRelatedObjectAsObservable,
+    deleteObject,
+    deleteObjectAsObservable,
     deleteRelatedObject,
     deleteRelatedObjectAsObservable,
     deleteRelatedObjects,
@@ -147,7 +149,7 @@ describe('saveObject / saveObjectAsObservable', () => {
         const body = { a: 1 };
         const result = await saveObject('el', body);
         const [url, postedBody, config] = mockedAxios.post.mock.calls[0];
-        expect(url).toBe('https://svc/schema/sandboxes/sb/el?bypassValidation=true');
+        expect(url).toBe('https://svc/schema/sandboxes/sb/el?bypassValidation=true&applyContext=nav%7Cup1%7CscopeKeyPath123');
         expect(postedBody).toBe(body);
         expect(config.headers.Authorization).toBe('Bearer TOKEN');
         expect(result).toEqual({ saved: true });
@@ -157,7 +159,7 @@ describe('saveObject / saveObjectAsObservable', () => {
         mockedAxios.post.mockResolvedValueOnce({ data: { saved: true } });
         await saveObject('el', '{"a":1}', { bypassValidation: false });
         const [url, body] = mockedAxios.post.mock.calls[0];
-        expect(url).toBe('https://svc/schema/sandboxes/sb/el?bypassValidation=false');
+        expect(url).toBe('https://svc/schema/sandboxes/sb/el?bypassValidation=false&applyContext=nav%7Cup1%7CscopeKeyPath123');
         expect(body).toBe('{"a":1}');
     });
 
@@ -165,7 +167,24 @@ describe('saveObject / saveObjectAsObservable', () => {
         mockedAxios.post.mockResolvedValueOnce({ data: { saved: true } });
         await saveObject('el', { a: 1 }, { fetchedRelationships: ['r1', 'r2'] });
         const [url] = mockedAxios.post.mock.calls[0];
-        expect(url).toBe('https://svc/schema/sandboxes/sb/el?bypassValidation=true&fetchedRelationships=r1%2Cr2');
+        expect(url).toBe('https://svc/schema/sandboxes/sb/el?bypassValidation=true&fetchedRelationships=r1%2Cr2&applyContext=nav%7Cup1%7CscopeKeyPath123');
+    });
+
+    it('omits applyContext when navigationContext is not present', async () => {
+        mockedAxios.post.mockResolvedValueOnce({ data: { saved: true } });
+        initDefaults({
+            userContext: {
+                user: { objKey: 'user1' },
+                userProxy: {},
+                orgProxy: { objType: 'Org' },
+                orgProxyKey: 'scopeKeyPath123',
+                orgKey: 'org1',
+                userProxyKey: 'up1',
+            },
+        });
+        await saveObject('el', { a: 1 });
+        const [url] = mockedAxios.post.mock.calls[0];
+        expect(url).toBe('https://svc/schema/sandboxes/sb/el?bypassValidation=true');
     });
 
     it('observable wrapper resolves saved object', async () => {
@@ -205,6 +224,29 @@ describe('saveRelatedObject / saveRelatedObjectAsObservable', () => {
         mockedAxios.post.mockResolvedValueOnce({ data: { saved: 'ok' } });
         const res = await lastValueFrom(saveRelatedObjectAsObservable('p', 'k', 'e', 'y'));
         expect(res).toEqual({ saved: 'ok' });
+    });
+});
+
+describe('deleteObject / deleteObjectAsObservable', () => {
+    it('returns true when object delete yields 204', async () => {
+        mockedAxios.delete.mockResolvedValueOnce({ status: 204 });
+        const ok = await deleteObject('el', 'k1');
+        const [url, config] = mockedAxios.delete.mock.calls[0];
+        expect(url).toBe('https://svc/schema/sandboxes/sb/el/k1');
+        expect(config.headers.Authorization).toBe('Bearer TOKEN');
+        expect(ok).toBe(true);
+    });
+    
+    it('returns false when object delete yields non-204', async () => {
+        mockedAxios.delete.mockResolvedValueOnce({ status: 200 });
+        const ok = await deleteObject('el', 'k1');
+        expect(ok).toBe(false);
+    });
+    
+    it('observable wrapper resolves boolean for object delete', async () => {
+        mockedAxios.delete.mockResolvedValueOnce({ status: 204 });
+        const ok = await lastValueFrom(deleteObjectAsObservable('el', 'k1'));
+        expect(ok).toBe(true);
     });
 });
 

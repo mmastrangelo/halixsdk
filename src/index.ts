@@ -85,6 +85,53 @@ export {
 } from './data-crud';
 
 // ================================================================================
+// ACCESS FUNCTIONS
+// ================================================================================
+
+export {
+    type ScopeKeyItem,
+    type Role,
+    type BusinessPrivilege,
+    type SandboxUser,
+    type UserAccessWrapper,
+    type InviteUserRequest,
+    type InviteResult,
+    type UpdateAccessRequest,
+    type BusinessPrivilegeCheckResult,
+    type CurrentBusinessPrivilegesResult,
+    type DataElementAccessMode,
+    type DataElementAccessResult,
+    listRoles,
+    listRolesAsObservable,
+    listBusinessPrivileges,
+    listBusinessPrivilegesAsObservable,
+    listSandboxUsers,
+    listSandboxUsersAsObservable,
+    getUserAccess,
+    getUserAccessAsObservable,
+    inviteUser,
+    inviteUserAsObservable,
+    updateUserAccess,
+    updateUserAccessAsObservable,
+    removeUserAccess,
+    removeUserAccessAsObservable,
+    hasBusinessPrivilege,
+    hasBusinessPrivilegeAsObservable,
+    userPrivileges,
+    userPrivilegesAsObservable,
+    dataElementAccess,
+    dataElementAccessAsObservable,
+    hasDataElementAccess,
+    hasDataElementAccessAsObservable,
+    canReadDataElement,
+    canReadDataElementAsObservable,
+    canWriteDataElement,
+    canWriteDataElementAsObservable,
+    canDeleteDataElement,
+    canDeleteDataElementAsObservable,
+} from './access';
+
+// ================================================================================
 // CONTENT FUNCTIONS
 // ================================================================================
 
