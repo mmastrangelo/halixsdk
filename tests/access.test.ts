@@ -13,6 +13,8 @@ import {
     hasBusinessPrivilegeAsObservable,
     initialize,
     inviteUser,
+    linkUserProxy,
+    linkUserProxyAsObservable,
     userPrivileges,
     userPrivilegesAsObservable,
 } from '../src/index';
@@ -30,6 +32,7 @@ vi.mock('axios', () => {
 const mockedAxios = axios as unknown as {
     get: ReturnType<typeof vi.fn>;
     post: ReturnType<typeof vi.fn>;
+    delete: ReturnType<typeof vi.fn>;
 };
 
 function initDefaults() {
@@ -174,6 +177,55 @@ describe('user invitations', () => {
                 headers: { Authorization: 'Bearer TOKEN' },
             },
         );
+    });
+});
+
+describe('user proxy linking', () => {
+    it('links an existing user to an existing user proxy with role object keys', async () => {
+        mockedAxios.post.mockResolvedValueOnce({ data: undefined });
+
+        await linkUserProxy({
+            userKey: 'usr~00~existing',
+            userProxyElementId: 'familyMember',
+            userProxyKey: 'fam~00~member~1',
+            roleKeys: ['rol~00~member', 'rol~00~admin'],
+        });
+
+        expect(mockedAxios.post).toHaveBeenCalledWith(
+            'https://svc/access/sandboxes/sb/userProxy/fam~00~member~1/familyMember/linkProxy?userKey=usr~00~existing&roleKeys=rol~00~member,rol~00~admin',
+            null,
+            {
+                headers: { Authorization: 'Bearer TOKEN' },
+            },
+        );
+    });
+
+    it('encodes link request path and query values', async () => {
+        mockedAxios.post.mockResolvedValueOnce({ data: undefined });
+
+        await linkUserProxy({
+            userKey: 'usr key',
+            userProxyElementId: 'family member',
+            userProxyKey: 'fam/key',
+            roleKeys: ['role key'],
+        });
+
+        expect(mockedAxios.post).toHaveBeenCalledWith(
+            'https://svc/access/sandboxes/sb/userProxy/fam%2Fkey/family%20member/linkProxy?userKey=usr%20key&roleKeys=role%20key',
+            null,
+            expect.any(Object),
+        );
+    });
+
+    it('observable link user proxy resolves after server call', async () => {
+        mockedAxios.post.mockResolvedValueOnce({ data: undefined });
+
+        await expect(lastValueFrom(linkUserProxyAsObservable({
+            userKey: 'usr~00~existing',
+            userProxyElementId: 'familyMember',
+            userProxyKey: 'fam~00~member~1',
+            roleKeys: ['rol~00~member'],
+        }))).resolves.toBeUndefined();
     });
 });
 

@@ -19,8 +19,9 @@
  * - `BusinessPrivilege.id` is the stable privilege identifier used by server-validated checks such as `hasBusinessPrivilege`.
  * - Data element access checks use stable data element IDs and resolve to persisted keys on the server.
  * - `ScopeKeyItem` entries define the data scope a user receives for an organization, user proxy, or custom data scope.
- * - `inviteUser` invites an existing unlinked user proxy record. Create or select that record first, then pass its
- *   object key as `userProxyKey`.
+ * - `inviteUser` invites an email address through an existing unlinked user proxy record. Create or select that record
+ *   first, then pass its object key as `userProxyKey`.
+ * - `linkUserProxy` links an existing platform user (`userKey`) to an existing unlinked user proxy record.
  *
  * @usage
  * ## When to Use
@@ -29,6 +30,7 @@
  * - **List users in the current sandbox** -> `listSandboxUsers`
  * - **Inspect one user's access** -> `getUserAccess`
  * - **Invite a user by email** -> `inviteUser`
+ * - **Link an existing platform user to a user proxy** -> `linkUserProxy`
  * - **Add or update a user's scope entry** -> `updateUserAccess`
  * - **Remove one user scope entry** -> `removeUserAccess`
  *
@@ -36,7 +38,7 @@
  * Never submit semantic role IDs as `roleKeys`. Resolve them first:
  * 1. call `listRoles()`
  * 2. find the role where `role.id` matches the semantic ID
- * 3. submit `role.objKey` in `InviteUserRequest.roleKeys` or `UpdateAccessRequest.roleKeys`
+ * 3. submit `role.objKey` in `InviteUserRequest.roleKeys`, `LinkUserProxyRequest.roleKeys`, or `UpdateAccessRequest.roleKeys`
  *
  * ## Key Functions
  * | Function | Use For |
@@ -45,7 +47,8 @@
  * | `listBusinessPrivileges` | Read business privilege metadata |
  * | `listSandboxUsers` | Read users with access to the current sandbox |
  * | `getUserAccess` | Read one user's current scope entries and roles |
- * | `inviteUser` | Invite a new user and assign initial role keys/scopes |
+ * | `inviteUser` | Invite an email address through an existing user proxy and assign initial role keys/scopes |
+ * | `linkUserProxy` | Link an existing platform user to an existing user proxy |
  * | `updateUserAccess` | Add or update one user scope entry |
  * | `removeUserAccess` | Remove one user scope entry |
  * | `hasBusinessPrivilege` | Server-check whether the current user has a privilege ID |
@@ -85,6 +88,15 @@
  *   email: 'new-member@example.com',
  *   userProxyElementId: 'familyMember',
  *   userProxyKey: pendingFamilyMember.objKey,
+ *   roleKeys: [memberRole.objKey],
+ * });
+ *
+ * @example
+ * // Link an existing platform user to an existing unlinked user proxy record
+ * await hx.linkUserProxy({
+ *   userKey: 'usr~00~existing',
+ *   userProxyElementId: 'familyMember',
+ *   userProxyKey: existingFamilyMember.objKey,
  *   roleKeys: [memberRole.objKey],
  * });
  *
@@ -220,6 +232,20 @@ export interface InviteResult {
     /** Invited email address. */
     email?: string;
     [key: string]: unknown;
+}
+
+/**
+ * Request body for linking an existing platform user to an existing unlinked user proxy record.
+ */
+export interface LinkUserProxyRequest {
+    /** Persisted platform user object key to link. */
+    userKey: string;
+    /** User proxy data element ID for the proxy record being linked. */
+    userProxyElementId: string;
+    /** Existing unlinked user proxy object key to link to the platform user. */
+    userProxyKey: string;
+    /** Persisted role object keys (`Role.objKey`). Never pass semantic `Role.id` values here. */
+    roleKeys: string[];
 }
 
 /**
@@ -395,6 +421,33 @@ export async function inviteUser(req: InviteUserRequest): Promise<InviteResult> 
  */
 export function inviteUserAsObservable(req: InviteUserRequest): Observable<InviteResult> {
     return from(inviteUser(req));
+}
+
+/**
+ * Links an existing platform user to an existing unlinked user proxy record and assigns role keys for that scope.
+ *
+ * Use this when the user already exists and you have selected or created the user proxy record that should represent
+ * them in the solution. `req.userKey` is the platform user object key. `req.userProxyKey` is the solution user proxy
+ * object key. `req.roleKeys` must contain persisted role object keys from `Role.objKey`, not semantic role IDs.
+ *
+ * @param req - Existing-user link request
+ */
+export async function linkUserProxy(req: LinkUserProxyRequest): Promise<void> {
+    const roleKeys = req.roleKeys.map((roleKey) => encodeURIComponent(roleKey)).join(',');
+    await axios.post(
+        `${serviceAddress}/access/sandboxes/${sandboxKey}/userProxy/${encodeURIComponent(req.userProxyKey)}/${encodeURIComponent(req.userProxyElementId)}/linkProxy?userKey=${encodeURIComponent(req.userKey)}&roleKeys=${roleKeys}`,
+        null,
+        {
+            headers: await authHeaders(),
+        },
+    );
+}
+
+/**
+ * Observable version of `linkUserProxy`. See `linkUserProxy` for details.
+ */
+export function linkUserProxyAsObservable(req: LinkUserProxyRequest): Observable<void> {
+    return from(linkUserProxy(req));
 }
 
 /**
