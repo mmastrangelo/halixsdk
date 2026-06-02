@@ -12,9 +12,11 @@ import {
     hasDataElementAccessAsObservable,
     hasBusinessPrivilegeAsObservable,
     initialize,
-    inviteUser,
+    inviteOrLinkUserProxyByEmail,
     linkUserProxy,
     linkUserProxyAsObservable,
+    listUserProxyAccessRoster,
+    setUserProxyRosterRoles,
     userPrivileges,
     userPrivilegesAsObservable,
 } from '../src/index';
@@ -147,39 +149,6 @@ describe('current user privileges', () => {
     });
 });
 
-describe('user invitations', () => {
-    it('posts invite request with existing user proxy key and role object keys', async () => {
-        mockedAxios.post.mockResolvedValueOnce({
-            data: { userTokenKey: 'utk~1', email: 'new-member@example.com' },
-        });
-
-        const result = await inviteUser({
-            email: 'new-member@example.com',
-            firstName: 'New',
-            lastName: 'Member',
-            userProxyElementId: 'familyMember',
-            userProxyKey: 'fam~00~member~1',
-            roleKeys: ['rol~00~member'],
-        });
-
-        expect(result).toEqual({ userTokenKey: 'utk~1', email: 'new-member@example.com' });
-        expect(mockedAxios.post).toHaveBeenCalledWith(
-            'https://svc/access/sandboxes/sb/inviteByEmail',
-            {
-                email: 'new-member@example.com',
-                firstName: 'New',
-                lastName: 'Member',
-                userProxyElementId: 'familyMember',
-                userProxyKey: 'fam~00~member~1',
-                roleKeys: ['rol~00~member'],
-            },
-            {
-                headers: { Authorization: 'Bearer TOKEN' },
-            },
-        );
-    });
-});
-
 describe('user proxy linking', () => {
     it('links an existing user to an existing user proxy with role object keys', async () => {
         mockedAxios.post.mockResolvedValueOnce({ data: undefined });
@@ -226,6 +195,75 @@ describe('user proxy linking', () => {
             userProxyKey: 'fam~00~member~1',
             roleKeys: ['rol~00~member'],
         }))).resolves.toBeUndefined();
+    });
+});
+
+describe('user proxy access roster', () => {
+    it('loads access-enriched roster rows for an org proxy context', async () => {
+        mockedAxios.get.mockResolvedValueOnce({
+            data: [{ userProxy: { objKey: 'fam~member' }, hasAccess: true }],
+        });
+
+        const result = await listUserProxyAccessRoster('fam~family', 'family', 'familyMember');
+
+        expect(result).toEqual([{ userProxy: { objKey: 'fam~member' }, hasAccess: true }]);
+        expect(mockedAxios.get).toHaveBeenCalledWith(
+            'https://svc/access/sandboxes/sb/userProxyRoster/fam~family/family/familyMember',
+            {
+                headers: { Authorization: 'Bearer TOKEN' },
+            },
+        );
+    });
+
+    it('invites or links by email through the roster endpoint', async () => {
+        mockedAxios.post.mockResolvedValueOnce({
+            data: {
+                action: 'alreadyLinked',
+                rolesUpdated: true,
+                row: { userProxy: { objKey: 'fam~member' }, hasAccess: true },
+            },
+        });
+
+        const result = await inviteOrLinkUserProxyByEmail('fam~family', 'family', 'familyMember', {
+            email: 'person@example.com',
+            firstName: 'Person',
+            roleKeys: ['rol~member'],
+        });
+
+        expect(result.action).toBe('alreadyLinked');
+        expect(result.rolesUpdated).toBe(true);
+        expect(mockedAxios.post).toHaveBeenCalledWith(
+            'https://svc/access/sandboxes/sb/userProxyRoster/fam~family/family/familyMember/inviteOrLink',
+            {
+                email: 'person@example.com',
+                firstName: 'Person',
+                roleKeys: ['rol~member'],
+            },
+            {
+                headers: { Authorization: 'Bearer TOKEN' },
+            },
+        );
+    });
+
+    it('sets roster roles and encodes path values', async () => {
+        mockedAxios.post.mockResolvedValueOnce({
+            data: { userProxy: { objKey: 'fam/key' }, hasAccess: true, roleKeys: ['rol key'] },
+        });
+
+        const result = await setUserProxyRosterRoles('fam/family', 'family type', 'family member', 'fam/key', {
+            roleKeys: ['rol key'],
+        });
+
+        expect(result.roleKeys).toEqual(['rol key']);
+        expect(mockedAxios.post).toHaveBeenCalledWith(
+            'https://svc/access/sandboxes/sb/userProxyRoster/fam%2Ffamily/family%20type/family%20member/fam%2Fkey/roles',
+            {
+                roleKeys: ['rol key'],
+            },
+            {
+                headers: { Authorization: 'Bearer TOKEN' },
+            },
+        );
     });
 });
 

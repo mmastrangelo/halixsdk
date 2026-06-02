@@ -19,9 +19,10 @@
  * - `BusinessPrivilege.id` is the stable privilege identifier used by server-validated checks such as `hasBusinessPrivilege`.
  * - Data element access checks use stable data element IDs and resolve to persisted keys on the server.
  * - `ScopeKeyItem` entries define the data scope a user receives for an organization, user proxy, or custom data scope.
- * - `inviteUser` invites an email address through an existing unlinked user proxy record. Create or select that record
- *   first, then pass its object key as `userProxyKey`.
  * - `linkUserProxy` links an existing platform user (`userKey`) to an existing unlinked user proxy record.
+ * - `listUserProxyAccessRoster` and `inviteOrLinkUserProxyByEmail` are the standard user-access page helpers. They use
+ *   the access service to join shared user proxy identity records with current-sandbox login, invite, scope, and role
+ *   state. Do not infer current-solution access from shared proxy records alone.
  *
  * @usage
  * ## When to Use
@@ -29,7 +30,7 @@
  * - **Show or check business privileges** -> `listBusinessPrivileges`, `hasBusinessPrivilege`, `userPrivileges`
  * - **List users in the current sandbox** -> `listSandboxUsers`
  * - **Inspect one user's access** -> `getUserAccess`
- * - **Invite a user by email** -> `inviteUser`
+ * - **Invite or link a user by email** -> `inviteOrLinkUserProxyByEmail`
  * - **Link an existing platform user to a user proxy** -> `linkUserProxy`
  * - **Add or update a user's scope entry** -> `updateUserAccess`
  * - **Remove one user scope entry** -> `removeUserAccess`
@@ -38,7 +39,7 @@
  * Never submit semantic role IDs as `roleKeys`. Resolve them first:
  * 1. call `listRoles()`
  * 2. find the role where `role.id` matches the semantic ID
- * 3. submit `role.objKey` in `InviteUserRequest.roleKeys`, `LinkUserProxyRequest.roleKeys`, or `UpdateAccessRequest.roleKeys`
+ * 3. submit `role.objKey` in `InviteOrLinkUserProxyByEmailRequest.roleKeys`, `LinkUserProxyRequest.roleKeys`, or `UpdateAccessRequest.roleKeys`
  *
  * ## Key Functions
  * | Function | Use For |
@@ -47,8 +48,10 @@
  * | `listBusinessPrivileges` | Read business privilege metadata |
  * | `listSandboxUsers` | Read users with access to the current sandbox |
  * | `getUserAccess` | Read one user's current scope entries and roles |
- * | `inviteUser` | Invite an email address through an existing user proxy and assign initial role keys/scopes |
  * | `linkUserProxy` | Link an existing platform user to an existing user proxy |
+ * | `listUserProxyAccessRoster` | Read shared proxy rows enriched with current-sandbox access status |
+ * | `inviteOrLinkUserProxyByEmail` | Reuse/create a proxy, invite/link by email, and return refreshed access state |
+ * | `setUserProxyRosterRoles` | Update roles for one roster row |
  * | `updateUserAccess` | Add or update one user scope entry |
  * | `removeUserAccess` | Remove one user scope entry |
  * | `hasBusinessPrivilege` | Server-check whether the current user has a privilege ID |
@@ -76,20 +79,6 @@
  * if (await hx.hasBusinessPrivilege('manageSharedLists')) {
  *   // Show controls for sharing list access
  * }
- *
- * @example
- * // Invite an existing unlinked user proxy record
- * const roles = await hx.listRoles();
- * const memberRole = roles.find((role) => role.id === 'householdMember');
- * if (!memberRole?.objKey) {
- *   throw new Error('Required role not found.');
- * }
- * await hx.inviteUser({
- *   email: 'new-member@example.com',
- *   userProxyElementId: 'familyMember',
- *   userProxyKey: pendingFamilyMember.objKey,
- *   roleKeys: [memberRole.objKey],
- * });
  *
  * @example
  * // Link an existing platform user to an existing unlinked user proxy record
@@ -198,43 +187,6 @@ export interface UserAccessWrapper {
 }
 
 /**
- * Request body for inviting a user and assigning initial sandbox access.
- */
-export interface InviteUserRequest {
-    /** Email address for the invited user. */
-    email: string;
-    /** Optional first name for the invited user. */
-    firstName?: string;
-    /** Optional last name for the invited user. */
-    lastName?: string;
-    /** User proxy data element ID used to create or link the user proxy record. */
-    userProxyElementId: string;
-    /** Existing unlinked user proxy object key to invite or link. */
-    userProxyKey: string;
-    /** Optional organization proxy object key for context; this is not a substitute for `userProxyKey`. */
-    orgProxyKey?: string;
-    /** Persisted role object keys (`Role.objKey`). Never pass semantic `Role.id` values here. */
-    roleKeys: string[];
-    /** Optional data scopes granted to the invited user. */
-    scopeKeyItems?: ScopeKeyItem[];
-    /** Optional notification template identifier. */
-    notificationTemplate?: string;
-}
-
-/**
- * Result returned from an invitation request.
- */
-export interface InviteResult {
-    /** Invitation/user token key, when returned by the access service. */
-    userTokenKey?: string;
-    /** Persisted user object key, when a user was created or resolved. */
-    userKey?: string;
-    /** Invited email address. */
-    email?: string;
-    [key: string]: unknown;
-}
-
-/**
  * Request body for linking an existing platform user to an existing unlinked user proxy record.
  */
 export interface LinkUserProxyRequest {
@@ -244,6 +196,86 @@ export interface LinkUserProxyRequest {
     userProxyElementId: string;
     /** Existing unlinked user proxy object key to link to the platform user. */
     userProxyKey: string;
+    /** Persisted role object keys (`Role.objKey`). Never pass semantic `Role.id` values here. */
+    roleKeys: string[];
+}
+
+/**
+ * One row in a user proxy access roster.
+ *
+ * `userProxy` is the shared identity/member record. `hasAccess` is current-sandbox access state and should be used
+ * before rendering someone as active or authorized for the current solution.
+ */
+export interface UserProxyAccessRosterRow {
+    /** Shared solution user proxy record. */
+    userProxy: Record<string, unknown>;
+    /** Linked platform user, when one exists and is visible to the access service. */
+    user?: Record<string, unknown>;
+    /** Pending invite token metadata, when a pending invite exists. */
+    userToken?: Record<string, unknown>;
+    /** Whether token lookup failed. */
+    userTokenError?: boolean;
+    /** Token validation error code, when available. */
+    userTokenErrorCode?: string;
+    /** User proxy login status such as `Pending`, `Active`, or empty. */
+    loginStatus?: string;
+    /** Whether the linked user has current-sandbox scope access for this roster context. */
+    hasAccess: boolean;
+    /** Matching current-sandbox scope element for this proxy/org context. */
+    matchingScopeElement?: Record<string, unknown>;
+    /** Persisted role object keys assigned on the matching scope element. */
+    roleKeys?: string[];
+    /** Role metadata for `roleKeys`, when available. */
+    roles?: Role[];
+}
+
+/**
+ * Request body for access-service managed user proxy invite/link flow.
+ */
+export interface InviteOrLinkUserProxyByEmailRequest {
+    /** Email address to normalize and invite/link. */
+    email: string;
+    /** Optional first name to use when the server must create a new proxy. */
+    firstName?: string;
+    /** Optional last name to use when the server must create a new proxy. */
+    lastName?: string;
+    /** Whether the created/reused proxy should be marked as an org proxy admin identity. */
+    orgProxyAdmin?: boolean;
+    /** Persisted role object keys (`Role.objKey`). Never pass semantic `Role.id` values here. */
+    roleKeys: string[];
+    /** Optional notification template identifier. */
+    notificationTemplate?: string;
+}
+
+/**
+ * Action performed by `inviteOrLinkUserProxyByEmail`.
+ */
+export type InviteOrLinkUserProxyAction =
+    | 'createdProxyAndInvited'
+    | 'reusedProxyAndInvited'
+    | 'resentInvite'
+    | 'linkedExistingUser'
+    | 'alreadyLinked';
+
+/**
+ * Result returned from access-service managed invite/link flow.
+ *
+ * `rolesUpdated` is only meaningful for `alreadyLinked` and `linkedExistingUser`. It is false for invite actions
+ * because invite role keys are carried by the pending invite/access configuration.
+ */
+export interface InviteOrLinkUserProxyResult {
+    /** Server action that was performed. */
+    action: InviteOrLinkUserProxyAction;
+    /** Whether requested role keys were added or updated on existing current-sandbox access. */
+    rolesUpdated?: boolean;
+    /** Refreshed roster row after the operation. */
+    row: UserProxyAccessRosterRow;
+}
+
+/**
+ * Request body for setting roles on one roster row.
+ */
+export interface SetUserProxyRosterRolesRequest {
     /** Persisted role object keys (`Role.objKey`). Never pass semantic `Role.id` values here. */
     roleKeys: string[];
 }
@@ -398,32 +430,6 @@ export function getUserAccessAsObservable(userKey: string): Observable<UserAcces
 }
 
 /**
- * Invites a user by email and assigns initial sandbox access.
- *
- * The target user proxy record must already exist and be unlinked. Pass that record's persisted object key in
- * `req.userProxyKey` and its data element ID in `req.userProxyElementId`.
- *
- * `req.roleKeys` must contain persisted role object keys from `Role.objKey`, not semantic role IDs. Resolve desired
- * semantic IDs with `listRoles` before calling this function.
- *
- * @param req - Invitation and initial access request
- * @returns Promise resolving to invitation result metadata
- */
-export async function inviteUser(req: InviteUserRequest): Promise<InviteResult> {
-    const response = await axios.post(`${serviceAddress}/access/sandboxes/${sandboxKey}/inviteByEmail`, req, {
-        headers: await authHeaders(),
-    });
-    return response.data;
-}
-
-/**
- * Observable version of `inviteUser`. See `inviteUser` for details.
- */
-export function inviteUserAsObservable(req: InviteUserRequest): Observable<InviteResult> {
-    return from(inviteUser(req));
-}
-
-/**
  * Links an existing platform user to an existing unlinked user proxy record and assigns role keys for that scope.
  *
  * Use this when the user already exists and you have selected or created the user proxy record that should represent
@@ -448,6 +454,122 @@ export async function linkUserProxy(req: LinkUserProxyRequest): Promise<void> {
  */
 export function linkUserProxyAsObservable(req: LinkUserProxyRequest): Observable<void> {
     return from(linkUserProxy(req));
+}
+
+/**
+ * Lists shared user proxy records enriched with current-sandbox access state.
+ *
+ * Use this for generated user-access pages. A returned proxy/member record is identity data; `row.hasAccess` and
+ * `row.matchingScopeElement` describe whether that identity has access in the current sandbox for the requested
+ * org/user-proxy context.
+ *
+ * @param orgProxyKey - Organization proxy object key for the roster context
+ * @param orgProxyElementId - Organization proxy data element ID
+ * @param userProxyElementId - User proxy/member data element ID
+ */
+export async function listUserProxyAccessRoster(
+    orgProxyKey: string,
+    orgProxyElementId: string,
+    userProxyElementId: string,
+): Promise<UserProxyAccessRosterRow[]> {
+    const response = await axios.get(
+        `${serviceAddress}/access/sandboxes/${sandboxKey}/userProxyRoster/${encodeURIComponent(orgProxyKey)}/${encodeURIComponent(orgProxyElementId)}/${encodeURIComponent(userProxyElementId)}`,
+        {
+            headers: await authHeaders(),
+        },
+    );
+    return response.data;
+}
+
+/**
+ * Observable version of `listUserProxyAccessRoster`. See `listUserProxyAccessRoster` for details.
+ */
+export function listUserProxyAccessRosterAsObservable(
+    orgProxyKey: string,
+    orgProxyElementId: string,
+    userProxyElementId: string,
+): Observable<UserProxyAccessRosterRow[]> {
+    return from(listUserProxyAccessRoster(orgProxyKey, orgProxyElementId, userProxyElementId));
+}
+
+/**
+ * Invites or links a user by email through the access service roster helper.
+ *
+ * The server normalizes email, reuses an existing shared proxy for the same org/user-proxy context when present,
+ * creates a proxy only when absent, links active users, refreshes pending invites, and returns the refreshed roster row.
+ *
+ * @param orgProxyKey - Organization proxy object key for the roster context
+ * @param orgProxyElementId - Organization proxy data element ID
+ * @param userProxyElementId - User proxy/member data element ID
+ * @param req - Invite/link request
+ */
+export async function inviteOrLinkUserProxyByEmail(
+    orgProxyKey: string,
+    orgProxyElementId: string,
+    userProxyElementId: string,
+    req: InviteOrLinkUserProxyByEmailRequest,
+): Promise<InviteOrLinkUserProxyResult> {
+    const response = await axios.post(
+        `${serviceAddress}/access/sandboxes/${sandboxKey}/userProxyRoster/${encodeURIComponent(orgProxyKey)}/${encodeURIComponent(orgProxyElementId)}/${encodeURIComponent(userProxyElementId)}/inviteOrLink`,
+        req,
+        {
+            headers: await authHeaders(),
+        },
+    );
+    return response.data;
+}
+
+/**
+ * Observable version of `inviteOrLinkUserProxyByEmail`. See `inviteOrLinkUserProxyByEmail` for details.
+ */
+export function inviteOrLinkUserProxyByEmailAsObservable(
+    orgProxyKey: string,
+    orgProxyElementId: string,
+    userProxyElementId: string,
+    req: InviteOrLinkUserProxyByEmailRequest,
+): Observable<InviteOrLinkUserProxyResult> {
+    return from(inviteOrLinkUserProxyByEmail(orgProxyKey, orgProxyElementId, userProxyElementId, req));
+}
+
+/**
+ * Updates role keys for one roster row and returns the refreshed row.
+ *
+ * `roleKeys` must contain persisted role object keys from `Role.objKey`, not semantic role IDs.
+ *
+ * @param orgProxyKey - Organization proxy object key for the roster context
+ * @param orgProxyElementId - Organization proxy data element ID
+ * @param userProxyElementId - User proxy/member data element ID
+ * @param proxyKey - User proxy object key for the row being updated
+ * @param req - Role update request
+ */
+export async function setUserProxyRosterRoles(
+    orgProxyKey: string,
+    orgProxyElementId: string,
+    userProxyElementId: string,
+    proxyKey: string,
+    req: SetUserProxyRosterRolesRequest,
+): Promise<UserProxyAccessRosterRow> {
+    const response = await axios.post(
+        `${serviceAddress}/access/sandboxes/${sandboxKey}/userProxyRoster/${encodeURIComponent(orgProxyKey)}/${encodeURIComponent(orgProxyElementId)}/${encodeURIComponent(userProxyElementId)}/${encodeURIComponent(proxyKey)}/roles`,
+        req,
+        {
+            headers: await authHeaders(),
+        },
+    );
+    return response.data;
+}
+
+/**
+ * Observable version of `setUserProxyRosterRoles`. See `setUserProxyRosterRoles` for details.
+ */
+export function setUserProxyRosterRolesAsObservable(
+    orgProxyKey: string,
+    orgProxyElementId: string,
+    userProxyElementId: string,
+    proxyKey: string,
+    req: SetUserProxyRosterRolesRequest,
+): Observable<UserProxyAccessRosterRow> {
+    return from(setUserProxyRosterRoles(orgProxyKey, orgProxyElementId, userProxyElementId, proxyKey, req));
 }
 
 /**
