@@ -100,11 +100,6 @@ export interface UserContext {
     orgProxyKey: string;
     orgKey: string;
     userProxyKey: string;
-    /**
-     * Business privilege IDs included in the initial context for display/navigation state.
-     * Do not use this client-side value for authorization checks; use access SDK server calls instead.
-     */
-    businessPrivileges?: string[];
     navigationContext: {
         navigationKey: string;
         navLevel: "organization" | "user";

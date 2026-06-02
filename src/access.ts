@@ -19,6 +19,8 @@
  * - `BusinessPrivilege.id` is the stable privilege identifier used by server-validated checks such as `hasBusinessPrivilege`.
  * - Data element access checks use stable data element IDs and resolve to persisted keys on the server.
  * - `ScopeKeyItem` entries define the data scope a user receives for an organization, user proxy, or custom data scope.
+ * - `inviteUser` invites an existing unlinked user proxy record. Create or select that record first, then pass its
+ *   object key as `userProxyKey`.
  *
  * @usage
  * ## When to Use
@@ -71,6 +73,20 @@
  * if (await hx.hasBusinessPrivilege('manageSharedLists')) {
  *   // Show controls for sharing list access
  * }
+ *
+ * @example
+ * // Invite an existing unlinked user proxy record
+ * const roles = await hx.listRoles();
+ * const memberRole = roles.find((role) => role.id === 'householdMember');
+ * if (!memberRole?.objKey) {
+ *   throw new Error('Required role not found.');
+ * }
+ * await hx.inviteUser({
+ *   email: 'new-member@example.com',
+ *   userProxyElementId: 'familyMember',
+ *   userProxyKey: pendingFamilyMember.objKey,
+ *   roleKeys: [memberRole.objKey],
+ * });
  *
  * @example
  * // Check current user's data access before showing a CRUD control
@@ -181,7 +197,9 @@ export interface InviteUserRequest {
     lastName?: string;
     /** User proxy data element ID used to create or link the user proxy record. */
     userProxyElementId: string;
-    /** Optional organization proxy object key for organization-scoped invitations. */
+    /** Existing unlinked user proxy object key to invite or link. */
+    userProxyKey: string;
+    /** Optional organization proxy object key for context; this is not a substitute for `userProxyKey`. */
     orgProxyKey?: string;
     /** Persisted role object keys (`Role.objKey`). Never pass semantic `Role.id` values here. */
     roleKeys: string[];
@@ -235,6 +253,8 @@ export interface CurrentBusinessPrivilegesResult {
     /** Business privilege IDs granted to the authenticated user in the current sandbox. */
     businessPrivileges: string[];
 }
+
+type CurrentBusinessPrivilegesResponse = CurrentBusinessPrivilegesResult | string[];
 
 /**
  * Data element access mode for current-user R/W/D privilege checks.
@@ -354,6 +374,9 @@ export function getUserAccessAsObservable(userKey: string): Observable<UserAcces
 /**
  * Invites a user by email and assigns initial sandbox access.
  *
+ * The target user proxy record must already exist and be unlinked. Pass that record's persisted object key in
+ * `req.userProxyKey` and its data element ID in `req.userProxyElementId`.
+ *
  * `req.roleKeys` must contain persisted role object keys from `Role.objKey`, not semantic role IDs. Resolve desired
  * semantic IDs with `listRoles` before calling this function.
  *
@@ -420,7 +443,7 @@ export function removeUserAccessAsObservable(userKey: string, scopeElementId: st
 /**
  * Checks whether the authenticated user has a business privilege ID by calling the access service.
  *
- * This intentionally does not read `userContext.businessPrivileges`, because browser-local context can be manipulated.
+ * This intentionally does not read browser-local context, because local state can be manipulated.
  * Treat this as an authorization check and await the server response.
  *
  * @param privilegeId - Stable business privilege ID
@@ -446,17 +469,20 @@ export function hasBusinessPrivilegeAsObservable(privilegeId: string): Observabl
 /**
  * Returns the authenticated user's business privilege IDs by calling the access service.
  *
- * This intentionally does not read `userContext.businessPrivileges`, because browser-local context can be manipulated.
+ * This intentionally does not read browser-local context, because local state can be manipulated.
  *
  * @returns Promise resolving to business privilege IDs for the current user
  */
 export async function userPrivileges(): Promise<string[]> {
-    const response = await axios.get<CurrentBusinessPrivilegesResult>(
+    const response = await axios.get<CurrentBusinessPrivilegesResponse>(
         `${serviceAddress}/access/sandboxes/${sandboxKey}/currentBusinessPrivileges`,
         {
             headers: await authHeaders(),
         },
     );
+    if (Array.isArray(response.data)) {
+        return response.data;
+    }
     return response.data.businessPrivileges ?? [];
 }
 

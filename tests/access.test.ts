@@ -12,6 +12,7 @@ import {
     hasDataElementAccessAsObservable,
     hasBusinessPrivilegeAsObservable,
     initialize,
+    inviteUser,
     userPrivileges,
     userPrivilegesAsObservable,
 } from '../src/index';
@@ -28,6 +29,7 @@ vi.mock('axios', () => {
 
 const mockedAxios = axios as unknown as {
     get: ReturnType<typeof vi.fn>;
+    post: ReturnType<typeof vi.fn>;
 };
 
 function initDefaults() {
@@ -42,7 +44,6 @@ function initDefaults() {
             orgProxyKey: 'scopeKeyPath123',
             orgKey: 'org1',
             userProxyKey: 'up1',
-            businessPrivileges: ['locallyInjectedPrivilege'],
         },
         params: {},
         authToken: 'TOKEN',
@@ -122,6 +123,16 @@ describe('current user privileges', () => {
         expect(result).toEqual([]);
     });
 
+    it('accepts raw current user privilege arrays from server', async () => {
+        mockedAxios.get.mockResolvedValueOnce({
+            data: ['manageSharedLists'],
+        });
+
+        const result = await userPrivileges();
+
+        expect(result).toEqual(['manageSharedLists']);
+    });
+
     it('observable current privileges resolve the same server list', async () => {
         mockedAxios.get.mockResolvedValueOnce({
             data: { businessPrivileges: ['manageSharedLists'] },
@@ -130,6 +141,39 @@ describe('current user privileges', () => {
         const result = await lastValueFrom(userPrivilegesAsObservable());
 
         expect(result).toEqual(['manageSharedLists']);
+    });
+});
+
+describe('user invitations', () => {
+    it('posts invite request with existing user proxy key and role object keys', async () => {
+        mockedAxios.post.mockResolvedValueOnce({
+            data: { userTokenKey: 'utk~1', email: 'new-member@example.com' },
+        });
+
+        const result = await inviteUser({
+            email: 'new-member@example.com',
+            firstName: 'New',
+            lastName: 'Member',
+            userProxyElementId: 'familyMember',
+            userProxyKey: 'fam~00~member~1',
+            roleKeys: ['rol~00~member'],
+        });
+
+        expect(result).toEqual({ userTokenKey: 'utk~1', email: 'new-member@example.com' });
+        expect(mockedAxios.post).toHaveBeenCalledWith(
+            'https://svc/access/sandboxes/sb/inviteByEmail',
+            {
+                email: 'new-member@example.com',
+                firstName: 'New',
+                lastName: 'Member',
+                userProxyElementId: 'familyMember',
+                userProxyKey: 'fam~00~member~1',
+                roleKeys: ['rol~00~member'],
+            },
+            {
+                headers: { Authorization: 'Bearer TOKEN' },
+            },
+        );
     });
 });
 
