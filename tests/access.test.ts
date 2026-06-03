@@ -16,6 +16,7 @@ import {
     linkUserProxy,
     linkUserProxyAsObservable,
     listUserProxyAccessRoster,
+    removeUserProxyRosterAccess,
     setUserProxyRosterRoles,
     userPrivileges,
     userPrivilegesAsObservable,
@@ -215,6 +216,25 @@ describe('user proxy access roster', () => {
         );
     });
 
+    it('loads active-only roster rows when requested', async () => {
+        mockedAxios.get.mockResolvedValueOnce({
+            data: [{ userProxy: { objKey: 'fam~member' }, hasAccess: true }],
+        });
+
+        const result = await listUserProxyAccessRoster('fam~family', 'family', 'familyMember', {
+            activeOnly: true,
+        });
+
+        expect(result).toEqual([{ userProxy: { objKey: 'fam~member' }, hasAccess: true }]);
+        expect(mockedAxios.get).toHaveBeenCalledWith(
+            'https://svc/access/sandboxes/sb/userProxyRoster/fam~family/family/familyMember',
+            {
+                headers: { Authorization: 'Bearer TOKEN' },
+                params: { activeOnly: 'true' },
+            },
+        );
+    });
+
     it('invites or links by email through the roster endpoint', async () => {
         mockedAxios.post.mockResolvedValueOnce({
             data: {
@@ -260,6 +280,22 @@ describe('user proxy access roster', () => {
             {
                 roleKeys: ['rol key'],
             },
+            {
+                headers: { Authorization: 'Bearer TOKEN' },
+            },
+        );
+    });
+
+    it('removes roster access and encodes path values', async () => {
+        mockedAxios.delete.mockResolvedValueOnce({
+            data: { userProxy: { objKey: 'fam/key' }, hasAccess: false },
+        });
+
+        const result = await removeUserProxyRosterAccess('fam/family', 'family type', 'family member', 'fam/key');
+
+        expect(result.hasAccess).toBe(false);
+        expect(mockedAxios.delete).toHaveBeenCalledWith(
+            'https://svc/access/sandboxes/sb/userProxyRoster/fam%2Ffamily/family%20type/family%20member/proxy/fam%2Fkey/access',
             {
                 headers: { Authorization: 'Bearer TOKEN' },
             },
