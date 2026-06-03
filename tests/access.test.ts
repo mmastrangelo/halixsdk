@@ -256,7 +256,7 @@ describe('user proxy access roster', () => {
 
         expect(result.roleKeys).toEqual(['rol key']);
         expect(mockedAxios.post).toHaveBeenCalledWith(
-            'https://svc/access/sandboxes/sb/userProxyRoster/fam%2Ffamily/family%20type/family%20member/fam%2Fkey/roles',
+            'https://svc/access/sandboxes/sb/userProxyRoster/fam%2Ffamily/family%20type/family%20member/proxy/fam%2Fkey/roles',
             {
                 roleKeys: ['rol key'],
             },

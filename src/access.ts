@@ -550,7 +550,7 @@ export async function setUserProxyRosterRoles(
     req: SetUserProxyRosterRolesRequest,
 ): Promise<UserProxyAccessRosterRow> {
     const response = await axios.post(
-        `${serviceAddress}/access/sandboxes/${sandboxKey}/userProxyRoster/${encodeURIComponent(orgProxyKey)}/${encodeURIComponent(orgProxyElementId)}/${encodeURIComponent(userProxyElementId)}/${encodeURIComponent(proxyKey)}/roles`,
+        `${serviceAddress}/access/sandboxes/${sandboxKey}/userProxyRoster/${encodeURIComponent(orgProxyKey)}/${encodeURIComponent(orgProxyElementId)}/${encodeURIComponent(userProxyElementId)}/proxy/${encodeURIComponent(proxyKey)}/roles`,
         req,
         {
             headers: await authHeaders(),
