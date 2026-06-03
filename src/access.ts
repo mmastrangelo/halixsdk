@@ -20,9 +20,10 @@
  * - Data element access checks use stable data element IDs and resolve to persisted keys on the server.
  * - `ScopeKeyItem` entries define the data scope a user receives for an organization, user proxy, or custom data scope.
  * - `linkUserProxy` links an existing platform user (`userKey`) to an existing unlinked user proxy record.
- * - `listUserProxyAccessRoster` and `inviteOrLinkUserProxyByEmail` are the standard user-access page helpers. They use
- *   the access service to join shared user proxy identity records with current-sandbox login, invite, scope, and role
- *   state. Do not infer current-solution access from shared proxy records alone.
+ * - `listUserProxyAccessRoster`, `inviteOrLinkUserProxyByEmail`, and `removeUserProxyRosterAccess` are the standard
+ *   user-access page helpers. They use the access service to join shared user proxy identity records with
+ *   current-sandbox login, invite, scope, and role state. Do not infer current-solution access from shared proxy records
+ *   alone.
  *
  * @usage
  * ## When to Use
@@ -52,6 +53,7 @@
  * | `listUserProxyAccessRoster` | Read shared proxy rows enriched with current-sandbox access status |
  * | `inviteOrLinkUserProxyByEmail` | Reuse/create a proxy, invite/link by email, and return refreshed access state |
  * | `setUserProxyRosterRoles` | Update roles for one roster row |
+ * | `removeUserProxyRosterAccess` | Remove current-sandbox access for one roster row |
  * | `updateUserAccess` | Add or update one user scope entry |
  * | `removeUserAccess` | Remove one user scope entry |
  * | `hasBusinessPrivilege` | Server-check whether the current user has a privilege ID |
@@ -227,6 +229,14 @@ export interface UserProxyAccessRosterRow {
     roleKeys?: string[];
     /** Role metadata for `roleKeys`, when available. */
     roles?: Role[];
+}
+
+/**
+ * Options for listing user proxy roster rows.
+ */
+export interface ListUserProxyAccessRosterOptions {
+    /** When true, return only linked active members with current-sandbox access for the roster context. */
+    activeOnly?: boolean;
 }
 
 /**
@@ -466,16 +476,20 @@ export function linkUserProxyAsObservable(req: LinkUserProxyRequest): Observable
  * @param orgProxyKey - Organization proxy object key for the roster context
  * @param orgProxyElementId - Organization proxy data element ID
  * @param userProxyElementId - User proxy/member data element ID
+ * @param options - Optional roster listing controls
  */
 export async function listUserProxyAccessRoster(
     orgProxyKey: string,
     orgProxyElementId: string,
     userProxyElementId: string,
+    options?: ListUserProxyAccessRosterOptions,
 ): Promise<UserProxyAccessRosterRow[]> {
+    const params = options?.activeOnly ? { activeOnly: 'true' } : undefined;
     const response = await axios.get(
         `${serviceAddress}/access/sandboxes/${sandboxKey}/userProxyRoster/${encodeURIComponent(orgProxyKey)}/${encodeURIComponent(orgProxyElementId)}/${encodeURIComponent(userProxyElementId)}`,
         {
             headers: await authHeaders(),
+            ...(params ? { params } : {}),
         },
     );
     return response.data;
@@ -488,8 +502,9 @@ export function listUserProxyAccessRosterAsObservable(
     orgProxyKey: string,
     orgProxyElementId: string,
     userProxyElementId: string,
+    options?: ListUserProxyAccessRosterOptions,
 ): Observable<UserProxyAccessRosterRow[]> {
-    return from(listUserProxyAccessRoster(orgProxyKey, orgProxyElementId, userProxyElementId));
+    return from(listUserProxyAccessRoster(orgProxyKey, orgProxyElementId, userProxyElementId, options));
 }
 
 /**
@@ -570,6 +585,44 @@ export function setUserProxyRosterRolesAsObservable(
     req: SetUserProxyRosterRolesRequest,
 ): Observable<UserProxyAccessRosterRow> {
     return from(setUserProxyRosterRoles(orgProxyKey, orgProxyElementId, userProxyElementId, proxyKey, req));
+}
+
+/**
+ * Removes current-sandbox access for one roster row and returns the refreshed row.
+ *
+ * This removes the user's access for the requested roster context. It does not delete the shared user proxy identity
+ * record or unlink the proxy from the platform user.
+ *
+ * @param orgProxyKey - Organization proxy object key for the roster context
+ * @param orgProxyElementId - Organization proxy data element ID
+ * @param userProxyElementId - User proxy/member data element ID
+ * @param proxyKey - User proxy object key for the row being removed from current access
+ */
+export async function removeUserProxyRosterAccess(
+    orgProxyKey: string,
+    orgProxyElementId: string,
+    userProxyElementId: string,
+    proxyKey: string,
+): Promise<UserProxyAccessRosterRow> {
+    const response = await axios.delete(
+        `${serviceAddress}/access/sandboxes/${sandboxKey}/userProxyRoster/${encodeURIComponent(orgProxyKey)}/${encodeURIComponent(orgProxyElementId)}/${encodeURIComponent(userProxyElementId)}/proxy/${encodeURIComponent(proxyKey)}/access`,
+        {
+            headers: await authHeaders(),
+        },
+    );
+    return response.data;
+}
+
+/**
+ * Observable version of `removeUserProxyRosterAccess`. See `removeUserProxyRosterAccess` for details.
+ */
+export function removeUserProxyRosterAccessAsObservable(
+    orgProxyKey: string,
+    orgProxyElementId: string,
+    userProxyElementId: string,
+    proxyKey: string,
+): Observable<UserProxyAccessRosterRow> {
+    return from(removeUserProxyRosterAccess(orgProxyKey, orgProxyElementId, userProxyElementId, proxyKey));
 }
 
 /**
