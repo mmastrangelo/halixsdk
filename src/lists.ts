@@ -142,6 +142,9 @@ export interface PagedListDataRequest extends BaseListDataRequest {
 
 /**
  * ListDataResponse wraps a data provider response to a list data request.
+ *
+ * Rows are returned in the `data` array. Do not read `objects`, `items`, or
+ * the response object itself as the row array.
  */
 export interface ListDataResponse {
     /** 
@@ -279,11 +282,21 @@ export interface MassChangeResponse {
  * - Most callers should omit `options`. Use `options.search` only for binary-search
  *   navigation scenarios, and use `options.bypassTotal` only when you explicitly do not
  *   need the total count.
+ * - For report-style local aggregation, set `pageNumber`, an explicit `pageSize`,
+ *   `displayFields`, and `additionalFieldsToFetch` for every field used in filtering,
+ *   grouping, sorting, aggregation, or rendering.
+ *
+ * Response shape:
+ * - `response.data` is the row array.
+ * - `response.total` is the total count when requested.
+ * - Do not read `response.objects`, `response.items`, or the response object itself as
+ *   the row array.
  * 
  * Request shape:
  * - `dataElementId` (required): root data element to retrieve
  * - `pageNumber` / `pageSize` (optional): pagination
  * - `displayFields` (optional): fields to populate in returned objects
+ * - `additionalFieldsToFetch` (optional): extra fields needed for local logic or rendering
  * - `sort` (optional): sort fields such as `[{ attributeId: 'name' }]`
  * - `filter` (optional): filter expression
  * - `parentDataElementId` / `parentKey` (optional): explicit parent scope
@@ -300,6 +313,7 @@ export interface MassChangeResponse {
  *   pageSize: 10,
  *   displayFields: ['name', 'studentNumber', 'email', 'grade']
  * });
+ * const rows = response.data;
  * 
  * @example
  * // Custom element pagination with an optional sort.
@@ -310,6 +324,7 @@ export interface MassChangeResponse {
  *   displayFields: ['name', 'studentNumber', 'email', 'grade'],
  *   sort: [{ attributeId: 'name' }]
  * });
+ * const rows = response.data;
  * 
  * @example
  * // Explicit parent scoping when the list must be anchored to a specific parent.
@@ -321,6 +336,7 @@ export interface MassChangeResponse {
  *   pageSize: 50,
  *   displayFields: ['firstName', 'lastName', 'email']
  * });
+ * const rows = listData.data;
  * 
  * @example
  * // options is rarely needed; omit it unless you need one of these behaviors.
