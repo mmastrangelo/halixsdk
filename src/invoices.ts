@@ -15,7 +15,7 @@
 import axios from 'axios';
 import { lastValueFrom } from 'rxjs';
 import { sandboxKey, serviceAddress, getAuthToken } from './sdk-general';
-import { getObjects } from './data-crud';
+import { getAccessibleObjects } from './data-crud';
 
 export interface InvoiceDueItem {
     /** Invoice (sales transaction) key. */
@@ -81,7 +81,7 @@ async function authHeaders() {
 
 export async function getEnabledPaymentReminders(orgKey: string): Promise<PaymentReminderRecord[]> {
     const filter = `(enabled=boolean:true) AND (organizationKey=string:${orgKey})`;
-    return getObjects('paymentReminder', [], filter) as Promise<PaymentReminderRecord[]>;
+    return getAccessibleObjects('paymentReminder', filter) as Promise<PaymentReminderRecord[]>;
 }
 
 export async function getInvoicesMatchingReminder(

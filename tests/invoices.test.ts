@@ -46,6 +46,7 @@ describe('invoice payment reminder helpers', () => {
         expect(url).toBe('https://features.example/schema/sandboxes/sbx~test/paymentReminder');
         expect(config.headers.Authorization).toBe('Bearer TOKEN');
         expect(config.params.get('filter')).toBe('(enabled=boolean:true) AND (organizationKey=string:org~test)');
+        expect(config.params.has('keys')).toBe(false);
         expect(reminders).toEqual([{ objKey: 'pmr~1', organizationKey: 'org~test', enabled: true }]);
     });
 
