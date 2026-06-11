@@ -149,12 +149,26 @@ export interface NotificationConfig {
     notificationDefinitionId: string;
     /** The key of the organization proxy */
     organizationProxyKey: string;
+    /** The object type of the organization proxy; allows notification dispatch to resolve the owning organization efficiently. */
+    organizationProxyType?: string;
     /** The object type of the data associated with the notification */
     dataObjectType: string;
     /** The key of the data object associated with the notification */
     dataObjectKey: string;
     /** The parameters to pass to the notification */
     params: Record<string, any>;
+    /** Correlates generated notification history with a payment reminder or other producer-owned source. */
+    reminderKey?: string;
+    /** When true, render/log recipients but skip actual channel dispatch and quota tracking. */
+    previewMode?: boolean;
+    /** Outstanding balance copied to generated recipient history rows. */
+    totalOutstandingAmount?: number;
+    /** Per-send email content override. `summary` is used as the email subject. */
+    emailContentOverride?: { summary?: string; content?: string; html?: string };
+    /** Per-send SMS content override. */
+    smsContentOverride?: { content?: string };
+    /** Per-send push content override. `summary` is used as the push title. */
+    pushContentOverride?: { summary?: string; content?: string };
 
     emailConfig?: {
         /** The type of user proxy to send the email to */
@@ -169,6 +183,8 @@ export interface NotificationConfig {
         replyEmailAddress?: string;
         /** The email address to send the email to; use when sending emails to non-user proxies/free-form email addresses; can contain a comma-separated list of email addresses */
         recipientEmail?: string;
+        /** Optional BCC address(es); comma-separated list allowed. Envelope-only. */
+        bccEmail?: string;
     };
 
     smsConfig?: {
