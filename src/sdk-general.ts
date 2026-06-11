@@ -149,6 +149,8 @@ export interface NotificationConfig {
     notificationDefinitionId: string;
     /** The key of the organization proxy */
     organizationProxyKey: string;
+    /** The object type of the organization proxy; allows notification dispatch to resolve the owning organization efficiently. */
+    organizationProxyType?: string;
     /** The object type of the data associated with the notification */
     dataObjectType: string;
     /** The key of the data object associated with the notification */

@@ -94,7 +94,7 @@ export async function getInvoicesMatchingReminder(
     return response.data;
 }
 
-export async function listEnrolledOrganizations(solutionKey: string): Promise<{ orgKey: string; orgProxyKey: string; orgName: string; timezone?: string }[]> {
+export async function listEnrolledOrganizations(solutionKey: string): Promise<{ orgKey: string; orgProxyKey: string; orgProxyType: string; orgName: string; timezone?: string }[]> {
     const url = `${serviceAddress}/billing/sandboxes/${sandboxKey}/solutions/${solutionKey}/enrolledOrganizations`;
     const response = await axios.get(url, { headers: await authHeaders() });
     return response.data;
@@ -104,6 +104,7 @@ export async function getReminderDeliveryCoverage(args: {
     reminderKey: string;
     payerKey: string;
     organizationProxyKey: string;
+    organizationProxyType?: string;
     dayStart: string;
     nextDayStart: string;
     channels: ('email' | 'sms')[];
