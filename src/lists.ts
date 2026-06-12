@@ -145,7 +145,9 @@ export interface PagedListDataRequest extends BaseListDataRequest {
  * ListDataResponse wraps a data provider response to a list data request.
  *
  * Rows are returned in the `data` array. Do not read `objects`, `items`, or
- * the response object itself as the row array.
+ * the response object itself as the row array. `total` is the total matching
+ * record count across all pages for this request. When `total > data.length`,
+ * the current response is only one page of a larger result set.
  */
 export interface ListDataResponse {
     /** 
@@ -154,7 +156,13 @@ export interface ListDataResponse {
      */
     data: any[];
     
-    /** The total number of entries across all pages */
+    /**
+     * The total number of matching entries across all pages for this request.
+     * If total is greater than data.length, more pages exist. A caller that is
+     * building a complete report/chart must request additional pages, use an
+     * aggregate endpoint, narrow the query with filters/key lists, or present
+     * the result as a capped/partial view.
+     */
     total: number;
     
     /** 
@@ -289,9 +297,22 @@ export interface MassChangeResponse {
  *
  * Response shape:
  * - `response.data` is the row array.
- * - `response.total` is the total count when requested.
+ * - `response.total` is the total matching record count across all pages when
+ *   requested. If `response.total > response.data.length`, this response is
+ *   a page slice, not the full result set.
  * - Do not read `response.objects`, `response.items`, or the response object itself as
  *   the row array.
+ *
+ * Pagination/reporting guidance:
+ * - Use `response.total` to decide whether the current page covers the full
+ *   query. For page 1 with pageSize 100 and total 5,000, local aggregation over
+ *   `response.data` covers only the first 100 rows.
+ * - For complete reports/charts, either page deliberately through the required
+ *   result set, use a server-side aggregate endpoint, narrow the server-side
+ *   filter/key list until the result is safely bounded, or clearly present the
+ *   output as partial/capped.
+ * - Do not treat a first page or large page as complete report data just because
+ *   it contains rows.
  * 
  * Request shape:
  * - `dataElementId` (required): root data element to retrieve
