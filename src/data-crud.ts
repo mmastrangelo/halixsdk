@@ -85,6 +85,7 @@
 import axios from 'axios';
 import { from, Observable, lastValueFrom } from 'rxjs';
 import { sandboxKey, serviceAddress, getAuthToken, userContext } from './sdk-general';
+import type { FilterExpression } from './filter-expression';
 
 // ================================================================================
 // INTERFACES
@@ -155,11 +156,11 @@ export function getObjectAsObservable(dataElementId: string, key: string, fetche
  * @param parentElementId - Parent element ID
  * @param parentKey - Parent object key; important: this establishes the scope of the query; use an appropriate scope key
  * @param elementId - Child element ID
- * @param filter - Optional filter; call `dataexpr_agent` to generate the filter expression. Must be less than 200 characters.
+ * @param filter - Optional Halix filter expression. This is not SQL or JavaScript syntax. Call `build_filter_expression` to generate it. Must be less than 200 characters.
  * @param fetchedRelationships - Optional relationships to include as nested objects
  * @returns Promise<any[]>
  */
-export async function getRelatedObjects(parentElementId: string, parentKey: string, elementId: string, filter?: string, fetchedRelationships?: string[]): Promise<any[]> {
+export async function getRelatedObjects(parentElementId: string, parentKey: string, elementId: string, filter?: FilterExpression, fetchedRelationships?: string[]): Promise<any[]> {
     if (!getAuthToken) {
         const errorMessage = 'SDK not initialized.';
         console.error(errorMessage);
@@ -196,7 +197,7 @@ export async function getRelatedObjects(parentElementId: string, parentKey: stri
 /**
  * Observable version of getRelatedObjects. See getRelatedObjects for details.
  */
-export function getRelatedObjectsAsObservable(parentElementId: string, parentKey: string, elementId: string, filter?: string, fetchedRelationships?: string[]): Observable<any[]> {
+export function getRelatedObjectsAsObservable(parentElementId: string, parentKey: string, elementId: string, filter?: FilterExpression, fetchedRelationships?: string[]): Observable<any[]> {
     return from(getRelatedObjects(parentElementId, parentKey, elementId, filter, fetchedRelationships));
 }
 
@@ -204,12 +205,12 @@ export function getRelatedObjectsAsObservable(parentElementId: string, parentKey
  * Retrieves all objects for a data element that the current user has access to.
  *
  * @param dataElementId - Data element ID
- * @param filter - Optional filter; call `dataexpr_agent` to generate the filter expression. Must be less than 200 characters.
+ * @param filter - Optional Halix filter expression. This is not SQL or JavaScript syntax. Call `build_filter_expression` to generate it. Must be less than 200 characters.
  * @param fetchedRelationships - Optional relationships to include as nested objects
  * @param applyContext - Optional flag to apply navigation context scoping. When true, navigation context is read from UserContext.navigationContext and results are limited by the navigation context org proxy.
  * @returns Promise<any[]>
  */
-export async function getAccessibleObjects(dataElementId: string, filter?: string, fetchedRelationships?: string[], applyContext?: boolean): Promise<any[]> {
+export async function getAccessibleObjects(dataElementId: string, filter?: FilterExpression, fetchedRelationships?: string[], applyContext?: boolean): Promise<any[]> {
     if (!getAuthToken) {
         const errorMessage = 'SDK not initialized.';
         console.error(errorMessage);
@@ -235,7 +236,7 @@ export async function getAccessibleObjects(dataElementId: string, filter?: strin
 /**
  * Observable version of getAccessibleObjects. See getAccessibleObjects for details.
  */
-export function getAccessibleObjectsAsObservable(dataElementId: string, filter?: string, fetchedRelationships?: string[], applyContext?: boolean): Observable<any[]> {
+export function getAccessibleObjectsAsObservable(dataElementId: string, filter?: FilterExpression, fetchedRelationships?: string[], applyContext?: boolean): Observable<any[]> {
     return from(getAccessibleObjects(dataElementId, filter, fetchedRelationships, applyContext));
 }
 
@@ -245,12 +246,12 @@ export function getAccessibleObjectsAsObservable(dataElementId: string, filter?:
  *
  * @param dataElementId - Data element ID
  * @param keys - Object keys to retrieve
- * @param filter - Optional filter; call `dataexpr_agent` to generate the filter expression. Must be less than 200 characters.
+ * @param filter - Optional Halix filter expression. This is not SQL or JavaScript syntax. Call `build_filter_expression` to generate it. Must be less than 200 characters.
  * @param fetchedRelationships - Optional relationships to include as nested objects
  * @param applyContext - Optional flag to apply navigation context scoping. When true, navigation context is read from UserContext.navigationContext and results are limited by the navigation context org proxy.
  * @returns Promise<any[]>
  */
-export async function getObjects(dataElementId: string, keys: string[], filter?: string, fetchedRelationships?: string[], applyContext?: boolean): Promise<any[]> {
+export async function getObjects(dataElementId: string, keys: string[], filter?: FilterExpression, fetchedRelationships?: string[], applyContext?: boolean): Promise<any[]> {
     if (!getAuthToken) {
         const errorMessage = 'SDK not initialized.';
         console.error(errorMessage);
@@ -276,7 +277,7 @@ export async function getObjects(dataElementId: string, keys: string[], filter?:
 /**
  * Observable version of getObjects. See getObjects for details.
  */
-export function getObjectsAsObservable(dataElementId: string, keys: string[], filter?: string, fetchedRelationships?: string[], applyContext?: boolean): Observable<any[]> {
+export function getObjectsAsObservable(dataElementId: string, keys: string[], filter?: FilterExpression, fetchedRelationships?: string[], applyContext?: boolean): Observable<any[]> {
     return from(getObjects(dataElementId, keys, filter, fetchedRelationships, applyContext));
 }
 
@@ -476,7 +477,7 @@ export function deleteRelatedObjectsAsObservable(parentElementId: string, parent
 // LOCAL HELPERS
 // ================================================================================
 
-function buildAccessibleObjectsParams(filter?: string, fetchedRelationships?: string[], applyContext?: boolean, keys?: string[]): URLSearchParams | undefined {
+function buildAccessibleObjectsParams(filter?: FilterExpression, fetchedRelationships?: string[], applyContext?: boolean, keys?: string[]): URLSearchParams | undefined {
     let params;
     if (filter || fetchedRelationships || applyContext || keys) {
         let p = {};

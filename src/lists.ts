@@ -27,6 +27,7 @@
 import axios from 'axios';
 import { from, Observable, lastValueFrom } from 'rxjs';
 import { sandboxKey, serviceAddress, getAuthToken } from './sdk-general';
+import type { FilterExpression } from './filter-expression';
 
 // ================================================================================
 // INTERFACES
@@ -105,11 +106,11 @@ export interface BaseListDataRequest {
     childKeysField?: string;
 
     /** 
-     * Filter expression to limit results. Evaluated within the parent key scope.
-     * Call `dataexpr_agent` to generate the filter expression.
-     * Must be less than 200 characters.
+     * Halix filter expression to limit results. Evaluated within the parent key scope.
+     * This is not SQL or JavaScript syntax. Call `build_filter_expression` to generate
+     * the filter expression. Must be less than 200 characters.
      */
-    filter?: string;
+    filter?: FilterExpression;
 
     /** 
      * List of fields being displayed on the list. Only these fields are populated in

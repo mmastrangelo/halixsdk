@@ -25,6 +25,7 @@
 import axios from 'axios';
 import { from, Observable, lastValueFrom } from 'rxjs';
 import { sandboxKey, serviceAddress, getAuthToken } from './sdk-general';
+import type { FilterExpression } from './filter-expression';
 
 // ================================================================================
 // INTERFACES
@@ -116,10 +117,10 @@ export interface AggregationRequest {
     parentKeyField?: string;
 
     /**
-     * Filter expression to limit records before aggregation. Call `dataexpr_agent` to generate the
-     * filter expression.
+     * Halix filter expression to limit records before aggregation. This is not SQL or
+     * JavaScript syntax. Call `build_filter_expression` to generate the filter expression.
      */
-    filter?: string;
+    filter?: FilterExpression;
 
     /**
      * List of grouping specifications. Groups are formed by field values with optional transforms.
