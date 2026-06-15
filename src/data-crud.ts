@@ -11,7 +11,6 @@
  * @module @halix/action-sdk/data-crud
  * @description Data CRUD operations for the Halix Platform action SDK. This module provides functions
  * for creating, reading, updating, and deleting data objects through the Halix data service API.
- * Note: for list-like displays, the `lists` module is preferred.
  * 
  * Key features:
  * - Retrieve one object a time
@@ -22,14 +21,24 @@
  * @usage
  * ## When to Use
  * - **Read objects without specifying parent scope** → `getAccessibleObjects` (most common read)
+ * - **Bounded accessible-record reads without pagination, totals, server sort, or list field projection** → `getAccessibleObjects`
  * - **Read specific accessible objects by key list** → `getObjects`
  * - **Get single object by key** → `getObject`
- * - **Get related objects (<50)** → `getRelatedObjects`
+ * - **Fetch a known parent's child records** → `getRelatedObjects`
  * - **Create/update single object** → `saveObject`
  * - **Delete single object** → `deleteObject`
  *
+ * ## Record Retrieval Decision
+ * - Use `getAccessibleObjects` for bounded accessible-record reads where you do not need pagination,
+ *   total count, server sort, or list-specific field projection.
+ * - Use `getRelatedObjects` when the component already has a concrete parent key and is fetching
+ *   that parent's children.
+ * - Use `getListData` from the lists module for paginated list UIs, server-side filtering/sorting,
+ *   explicit totals, or bounded report reads.
+ * - Use `getAggregateData` from the data-aggregate module for counts, sums, rankings, and grouped metrics.
+ *
  * ## When NOT to Use
- * - **Large lists (100+)** → use lists skill with `getListData`
+ * - **List UI pagination, explicit totals, server sort/filter, or field projection** → use lists skill with `getListData`
  * - **Bulk updates** → use lists skill with `massEdit`
  * - **Aggregations** → use data-aggregate skill
  *
@@ -39,7 +48,7 @@
  * | `getAccessibleObjects` | Read objects the current user can access (no parent scope needed) |
  * | `getObjects` | Read accessible objects from a specific key list |
  * | `getObject` | Single object by key |
- * | `getRelatedObjects` | Children of a parent (small collections) |
+ * | `getRelatedObjects` | Children of a known parent record |
  * | `saveObject` | Create or update one object |
  * | `saveRelatedObject` | Create or update one object and establish relationship to a parent |
  * | `deleteObject` | Delete one object without parent scope |
@@ -58,7 +67,7 @@
  * const recipe = await hx.getObject('recipe', recipeKey);
  *
  * @example
- * // Get ingredients (small collection)
+ * // Get ingredients for a known recipe
  * const ingredients = await hx.getRelatedObjects(
  *   'recipe', recipeKey, 'ingredient'
  * );

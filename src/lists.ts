@@ -282,6 +282,11 @@ export interface MassChangeResponse {
  * Retrieves paginated list data. Supports authenticated/public access, filtering, sorting, and binary search.
  * 
  * Common usage:
+ * - Use `getListData` when you need list-specific behavior: pagination, explicit totals,
+ *   server-side sort/filter, field projection, search, selection, or bulk operations.
+ * - Do not choose `getListData` only because the task is a report. Prefer `getAccessibleObjects`
+ *   for bounded accessible-record reads without list behavior, `getRelatedObjects` when a
+ *   concrete parent key is already known, or `getAggregateData` for grouped counts/sums.
  * - For most custom-element list UIs, start with only `dataElementId`, pagination fields,
  *   and `displayFields`.
  * - Omit `parentDataElementId` and `parentKey` when you want the records the current user
@@ -291,8 +296,8 @@ export interface MassChangeResponse {
  * - Most callers should omit `options`. Use `options.search` only for binary-search
  *   navigation scenarios, and use `options.bypassTotal` only when you explicitly do not
  *   need the total count.
- * - For report-style local aggregation, set `pageNumber`, an explicit `pageSize`,
- *   `displayFields`, and `additionalFieldsToFetch` for every field used in filtering,
+ * - For bounded report reads that genuinely need list behavior, set `pageNumber`, an explicit
+ *   `pageSize`, `displayFields`, and `additionalFieldsToFetch` for every field used in filtering,
  *   grouping, sorting, aggregation, or rendering.
  *
  * Response shape:
@@ -303,14 +308,10 @@ export interface MassChangeResponse {
  * - Do not read `response.objects`, `response.items`, or the response object itself as
  *   the row array.
  *
- * Pagination/reporting guidance:
+ * Pagination guidance:
  * - Use `response.total` to decide whether the current page covers the full
  *   query. For page 1 with pageSize 100 and total 5,000, local aggregation over
  *   `response.data` covers only the first 100 rows.
- * - For complete reports/charts, either page deliberately through the required
- *   result set, use a server-side aggregate endpoint, narrow the server-side
- *   filter/key list until the result is safely bounded, or clearly present the
- *   output as partial/capped.
  * - Do not treat a first page or large page as complete report data just because
  *   it contains rows.
  * 
