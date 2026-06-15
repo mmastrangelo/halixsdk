@@ -20,8 +20,8 @@
  *
  * @usage
  * ## When to Use
- * - **Read objects without specifying parent scope** → `getAccessibleObjects` (most common read)
- * - **Bounded accessible-record reads without pagination, totals, server sort, or list field projection** → `getAccessibleObjects`
+ * - **Read objects without specifying parent scope** → `getAccessibleObjects`
+ * - **Bounded accessible-record reads without pagination, totals, server sort, or list field projection** → `getAccessibleObjects`, with a filter when date/status/foreign-key fields can narrow the payload
  * - **Read specific accessible objects by key list** → `getObjects`
  * - **Get single object by key** → `getObject`
  * - **Fetch a known parent's child records** → `getRelatedObjects`
@@ -30,7 +30,8 @@
  *
  * ## Record Retrieval Decision
  * - Use `getAccessibleObjects` for bounded accessible-record reads where you do not need pagination,
- *   total count, server sort, or list-specific field projection.
+ *   total count, server sort, or list-specific field projection. Pass its optional filter argument
+ *   when the relevant subset can be expressed by date, status, foreign key, or other schema-backed fields.
  * - Use `getRelatedObjects` when the component already has a concrete parent key and is fetching
  *   that parent's children.
  * - Use `getListData` from the lists module for paginated list UIs, server-side filtering/sorting,
@@ -38,6 +39,7 @@
  * - Use `getAggregateData` from the data-aggregate module for counts, sums, rankings, and grouped metrics.
  *
  * ## When NOT to Use
+ * - **High-cardinality report reads without a narrowing filter**
  * - **List UI pagination, explicit totals, server sort/filter, or field projection** → use lists skill with `getListData`
  * - **Bulk updates** → use lists skill with `massEdit`
  * - **Aggregations** → use data-aggregate skill
@@ -45,7 +47,7 @@
  * ## Key Functions
  * | Function | Use For |
  * |----------|---------|
- * | `getAccessibleObjects` | Read objects the current user can access (no parent scope needed) |
+ * | `getAccessibleObjects` | Read filtered/bounded objects the current user can access (no parent scope needed) |
  * | `getObjects` | Read accessible objects from a specific key list |
  * | `getObject` | Single object by key |
  * | `getRelatedObjects` | Children of a known parent record |
@@ -55,7 +57,15 @@
  * | `deleteRelatedObject` | Delete one related object |
  *
  * @example
- * // Get all accessible recipes
+ * // Get accessible class enrollments for a bounded date window
+ * // Create the filter expression with build_filter_expression before coding it here.
+ * const recentEnrollments = await hx.getAccessibleObjects(
+ *   'classEnrollment',
+ *   "startDate>=date:'2025-01-01'"
+ * );
+ *
+ * @example
+ * // Get all accessible recipes only when the accessible set is naturally small
  * const recipes = await hx.getAccessibleObjects('recipe');
  *
  * @example
