@@ -169,6 +169,11 @@ describe('getListData / getListDataAsObservable', () => {
         const request = {
             dataElementId: 'product',
             parentDataElementId: 'catalog',
+            fields: ['name', 'price']
+        };
+        const serverRequest = {
+            dataElementId: 'product',
+            parentDataElementId: 'catalog',
             displayFields: ['name', 'price']
         };
 
@@ -183,7 +188,7 @@ describe('getListData / getListDataAsObservable', () => {
 
         expect(mockedAxios.post).toHaveBeenCalledWith(
             'https://test-service/list/sandboxes/testSandbox/public/listdataSearch',
-            request,
+            serverRequest,
             expect.objectContaining({
                 headers: {},
                 params: {
@@ -561,7 +566,7 @@ describe('massDelete / massDeleteAsObservable', () => {
         expect(result.failed).toBe(3);
     });
 
-    it('calls massdelete with displayFields in dataRequest', async () => {
+    it('sends fields as displayFields inside massdelete dataRequest', async () => {
         const mockResponse = { 
             data: { 
                 tried: 5,
@@ -577,7 +582,7 @@ describe('massDelete / massDeleteAsObservable', () => {
                 dataElementId: 'item',
                 parentDataElementId: 'category',
                 parentKey: 'cat1',
-                displayFields: ['objKey', 'name']
+                fields: ['objKey', 'name']
             },
             dataElementId: 'item'
         };

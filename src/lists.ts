@@ -112,17 +112,16 @@ export interface BaseListDataRequest {
      */
     filter?: FilterExpression;
 
-    /** 
-     * List of fields being displayed on the list. Only these fields are populated in
-     * returned objects to reduce payload size. If fields include relationship paths,
-     * those relationships are automatically retrieved.
+    /**
+     * Fields to populate in returned rows. If omitted, rows may contain only `objKey`
+     * plus server defaults; every field read from `response.data` should be requested
+     * here. Use this same array for visible fields and fields needed by local
+     * calculations, joins, grouping, charting, sorting, or conditional rendering.
+     *
+     * If fields include relationship paths, those relationships are automatically retrieved.
+     * The SDK sends this to the list service as `displayFields`.
      */
-    displayFields?: string[];
-
-    /** 
-     * Additional field values to include that may not be in displayFields, sort, or filters.
-     */
-    additionalFieldsToFetch?: string[];
+    fields?: string[];
 }
 
 /**
@@ -149,12 +148,13 @@ export interface PagedListDataRequest extends BaseListDataRequest {
  * record count across all pages for this request. When `total > data.length`,
  * the current response is only one page of a larger result set.
  */
-export interface ListDataResponse {
+export interface ListDataResponse<TRecord extends Record<string, unknown> = Record<string, unknown>> {
     /** 
-     * A slice of the appropriate runtime struct type containing a single page-worth of data.
-     * The actual type of objects in this array depends on the dataElementId being queried.
+     * A single page of rows for the requested data element. This is the only row array
+     * returned by getListData. Properties such as `objects`, `items`, or `list` are not
+     * part of the SDK response.
      */
-    data: any[];
+    data: TRecord[];
     
     /**
      * The total number of matching entries across all pages for this request.
@@ -288,7 +288,7 @@ export interface MassChangeResponse {
  *   for bounded accessible-record reads without list behavior, `getRelatedObjects` when a
  *   concrete parent key is already known, or `getAggregateData` for grouped counts/sums.
  * - For most custom-element list UIs, start with only `dataElementId`, pagination fields,
- *   and `displayFields`.
+ *   and `fields`.
  * - Omit `parentDataElementId` and `parentKey` when you want the records the current user
  *   can already access.
  * - Add `parentDataElementId` and `parentKey` only when the list must be anchored to a
@@ -297,8 +297,8 @@ export interface MassChangeResponse {
  *   navigation scenarios, and use `options.bypassTotal` only when you explicitly do not
  *   need the total count.
  * - For bounded report reads that genuinely need list behavior, set `pageNumber`, an explicit
- *   `pageSize`, `displayFields`, and `additionalFieldsToFetch` for every field used in filtering,
- *   grouping, sorting, aggregation, or rendering.
+ *   `pageSize`, and `fields` for every field used in filtering, grouping, sorting,
+ *   aggregation, or rendering.
  *
  * Response shape:
  * - `response.data` is the row array.
@@ -318,46 +318,53 @@ export interface MassChangeResponse {
  * Request shape:
  * - `dataElementId` (required): root data element to retrieve
  * - `pageNumber` / `pageSize` (optional): pagination
- * - `displayFields` (optional): fields to populate in returned objects
- * - `additionalFieldsToFetch` (optional): extra fields needed for local logic or rendering
+ * - `fields` (optional): fields to populate in returned objects
  * - `sort` (optional): sort fields such as `[{ attributeId: 'name' }]`
  * - `filter` (optional): filter expression
  * - `parentDataElementId` / `parentKey` (optional): explicit parent scope
  * 
  * @param request - List configuration including dataElementId, parentDataElementId, parentKey, pagination, sort, filter
  * @param options - Optional: isPublic, bypassTotal, search
- * @returns Promise<ListDataResponse> with data array, total count, pageNumber
+ * @returns Promise<ListDataResponse<TRecord>> with data array, total count, pageNumber
  * 
  * @example
  * // Most common case: one page of records the current user can access.
- * const response = await getListData({
+ * type StudentRow = {
+ *   name: string;
+ *   studentNumber: string;
+ *   email: string;
+ *   grade: string;
+ * };
+ * const response = await getListData<StudentRow>({
  *   dataElementId: 'student',
  *   pageNumber: 1,
  *   pageSize: 10,
- *   displayFields: ['name', 'studentNumber', 'email', 'grade']
+ *   fields: ['name', 'studentNumber', 'email', 'grade']
  * });
  * const rows = response.data;
  * 
  * @example
  * // Custom element pagination with an optional sort.
- * const response = await getListData({
+ * type StudentListRow = { name: string; studentNumber: string; email: string; grade: string };
+ * const response = await getListData<StudentListRow>({
  *   dataElementId: 'student',
  *   pageNumber: currentPage,
  *   pageSize: 10,
- *   displayFields: ['name', 'studentNumber', 'email', 'grade'],
+ *   fields: ['name', 'studentNumber', 'email', 'grade'],
  *   sort: [{ attributeId: 'name' }]
  * });
  * const rows = response.data;
  * 
  * @example
  * // Explicit parent scoping when the list must be anchored to a specific parent.
- * const listData = await getListData({
+ * type CustomerRow = { firstName: string; lastName: string; email: string };
+ * const listData = await getListData<CustomerRow>({
  *   dataElementId: 'customer',
  *   parentDataElementId: 'company',
  *   parentKey: orgProxyKey,
  *   pageNumber: 1,
  *   pageSize: 50,
- *   displayFields: ['firstName', 'lastName', 'email']
+ *   fields: ['firstName', 'lastName', 'email']
  * });
  * const rows = listData.data;
  * 
@@ -368,7 +375,7 @@ export interface MassChangeResponse {
  *     dataElementId: 'student',
  *     pageNumber: 1,
  *     pageSize: 10,
- *     displayFields: ['name']
+ *     fields: ['name']
  *   },
  *   {
  *     search: {
@@ -379,7 +386,10 @@ export interface MassChangeResponse {
  *   }
  * );
  */
-export async function getListData(request: PagedListDataRequest, options?: ListDataOptions): Promise<ListDataResponse> {
+export async function getListData<TRecord extends Record<string, unknown> = Record<string, unknown>>(
+    request: PagedListDataRequest,
+    options?: ListDataOptions
+): Promise<ListDataResponse<TRecord>> {
 
     const isPublic = options?.isPublic ?? false;
     const hasSearch = !!options?.search;
@@ -428,12 +438,12 @@ export async function getListData(request: PagedListDataRequest, options?: ListD
     }
 
     // Make the API request
-    let response = await axios.post(url, request, {
+    let response = await axios.post(url, _toServerListDataRequest(request), {
         headers,
         params: Object.keys(params).length > 0 ? params : undefined,
     });
 
-    return response.data;
+    return response.data as ListDataResponse<TRecord>;
 }
 
 /**
@@ -443,8 +453,43 @@ export async function getListData(request: PagedListDataRequest, options?: ListD
  * getListDataAsObservable({ dataElementId: 'customer', parentDataElementId: 'company', parentKey: orgProxyKey })
  *   .subscribe(response => console.log(response.data));
  */
-export function getListDataAsObservable(request: PagedListDataRequest, options?: ListDataOptions): Observable<ListDataResponse> {
-    return from(getListData(request, options));
+export function getListDataAsObservable<TRecord extends Record<string, unknown> = Record<string, unknown>>(
+    request: PagedListDataRequest,
+    options?: ListDataOptions
+): Observable<ListDataResponse<TRecord>> {
+    return from(getListData<TRecord>(request, options));
+}
+
+type ServerListDataRequest<TRequest extends BaseListDataRequest = BaseListDataRequest> = Omit<TRequest, 'fields'> & {
+    displayFields?: string[];
+};
+
+function _toServerListDataRequest<TRequest extends BaseListDataRequest>(
+    request: TRequest
+): ServerListDataRequest<TRequest> {
+    const { fields, ...rest } = request;
+    return {
+        ...rest,
+        ...(fields ? { displayFields: fields } : {}),
+    } as ServerListDataRequest<TRequest>;
+}
+
+function _toServerMassEditRequest(request: MassEditRequest): Omit<MassEditRequest, 'dataRequest'> & {
+    dataRequest: ServerListDataRequest<BaseListDataRequest>;
+} {
+    return {
+        ...request,
+        dataRequest: _toServerListDataRequest(request.dataRequest),
+    };
+}
+
+function _toServerMassDeleteRequest(request: MassDeleteRequest): Omit<MassDeleteRequest, 'dataRequest'> & {
+    dataRequest: ServerListDataRequest<BaseListDataRequest>;
+} {
+    return {
+        ...request,
+        dataRequest: _toServerListDataRequest(request.dataRequest),
+    };
 }
 
 // ================================================================================
@@ -485,7 +530,7 @@ export async function massEdit(request: MassEditRequest): Promise<MassChangeResp
     console.log("Sending POST request to " + url + " with token " + authToken);
 
     // Make the API request
-    let response = await axios.post(url, request, { headers });
+    let response = await axios.post(url, _toServerMassEditRequest(request), { headers });
 
     return response.data;
 }
@@ -528,7 +573,7 @@ export async function massDelete(request: MassDeleteRequest): Promise<MassChange
     console.log("Sending POST request to " + url + " with token " + authToken);
 
     // Make the API request
-    let response = await axios.post(url, request, { headers });
+    let response = await axios.post(url, _toServerMassDeleteRequest(request), { headers });
 
     return response.data;
 }
