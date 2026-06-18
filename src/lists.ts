@@ -282,8 +282,9 @@ export interface MassChangeResponse {
  * Retrieves paginated list data. Supports authenticated/public access, filtering, sorting, and binary search.
  * 
  * Common usage:
- * - Use `getListData` when you need list-specific behavior: pagination, explicit totals,
- *   server-side sort/filter, field projection, search, selection, or bulk operations.
+ * - Use `getListData` when you are building a paged list UI or list-management workflow:
+ *   pagination, explicit totals, server-side sort/filter, field projection, search, selection,
+ *   or bulk operations.
  * - Do not choose `getListData` only because the task is a report. Prefer `getAccessibleObjects`
  *   for bounded accessible-record reads without list behavior, `getRelatedObjects` when a
  *   concrete parent key is already known, or `getAggregateData` for grouped counts/sums.
@@ -296,9 +297,9 @@ export interface MassChangeResponse {
  * - Most callers should omit `options`. Use `options.search` only for binary-search
  *   navigation scenarios, and use `options.bypassTotal` only when you explicitly do not
  *   need the total count.
- * - For bounded report reads that genuinely need list behavior, set `pageNumber`, an explicit
- *   `pageSize`, and `fields` for every field used in filtering, grouping, sorting,
- *   aggregation, or rendering.
+ * - Do not use `getListData` as a generic bulk-data loader for reports. Use filtered
+ *   `getAccessibleObjects`, `getRelatedObjects` with a concrete parent key, or `getAggregateData`
+ *   whenever those can answer the data need directly.
  *
  * Response shape:
  * - `response.data` is the row array.

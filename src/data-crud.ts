@@ -34,8 +34,7 @@
  *   when the relevant subset can be expressed by date, status, foreign key, or other schema-backed fields.
  * - Use `getRelatedObjects` when the component already has a concrete parent key and is fetching
  *   that parent's children.
- * - Use `getListData` from the lists module for paginated list UIs, server-side filtering/sorting,
- *   explicit totals, or bounded report reads.
+ * - Use `getListData` from the lists module for paged list UIs and list-management workflows.
  * - Use `getAggregateData` from the data-aggregate module for counts, sums, rankings, and grouped metrics.
  *
  * ## When NOT to Use
