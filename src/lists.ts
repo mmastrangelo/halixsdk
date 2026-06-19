@@ -26,7 +26,7 @@
 
 import axios from 'axios';
 import { from, Observable, lastValueFrom } from 'rxjs';
-import { sandboxKey, serviceAddress, getAuthToken } from './sdk-general';
+import { sandboxKey, serviceAddress, getAuthToken, buildApplyNavigationContext } from './sdk-general';
 import type { FilterExpression } from './filter-expression';
 
 // ================================================================================
@@ -195,6 +195,13 @@ export interface ListDataOptions {
     isPublic?: boolean;
     /** Whether to bypass total count calculation for performance */
     bypassTotal?: boolean;
+    /**
+     * Whether to scope results to the current frontend navigation context.
+     * When true, navigation context is read from UserContext.navigationContext and
+     * sent to the list service as navContext. Data Explorer artifacts should use
+     * this for runtime list reads.
+     */
+    applyContext?: boolean;
     /** 
      * Search options for binary search functionality; if provided, the response will include
      * the page of data that contains the first occurrence of the search value. The selectedRow
@@ -294,9 +301,10 @@ export interface MassChangeResponse {
  *   can already access.
  * - Add `parentDataElementId` and `parentKey` only when the list must be anchored to a
  *   specific parent record.
- * - Most callers should omit `options`. Use `options.search` only for binary-search
- *   navigation scenarios, and use `options.bypassTotal` only when you explicitly do not
- *   need the total count.
+ * - Use `options.applyContext` when a frontend navigation-context artifact must stay
+ *   scoped to the current user/org view; use `options.search` only for binary-search
+ *   navigation scenarios, and use `options.bypassTotal` only when you explicitly do
+ *   not need the total count.
  * - Do not use `getListData` as a generic bulk-data loader for reports. Use filtered
  *   `getAccessibleObjects`, `getRelatedObjects` with a concrete parent key, or `getAggregateData`
  *   whenever those can answer the data need directly.
@@ -326,13 +334,14 @@ export interface MassChangeResponse {
  * - `sort` (optional): sort fields such as `[{ attributeId: 'name' }]`
  * - `filter` (optional): filter expression
  * - `parentDataElementId` / `parentKey` (optional): explicit parent scope
+ * - `options.applyContext` (optional): scopes the list read to the current frontend navigation context
  * 
  * @param request - List configuration including dataElementId, parentDataElementId, parentKey, pagination, sort, filter
- * @param options - Optional: isPublic, bypassTotal, search
+ * @param options - Optional: isPublic, bypassTotal, search, applyContext
  * @returns Promise<ListDataResponse<TRecord>> with data array, total count, pageNumber
  * 
  * @example
- * // Most common case: one page of records the current user can access.
+ * // Frontend-context artifact: one page scoped to the current navigation context.
  * type StudentRow = {
  *   name: string;
  *   studentNumber: string;
@@ -344,7 +353,7 @@ export interface MassChangeResponse {
  *   pageNumber: 1,
  *   pageSize: 10,
  *   fields: ['name', 'studentNumber', 'email', 'grade']
- * });
+ * }, { applyContext: true });
  * const rows = response.data;
  * 
  * @example
@@ -373,7 +382,7 @@ export interface MassChangeResponse {
  * const rows = listData.data;
  * 
  * @example
- * // options is rarely needed; omit it unless you need one of these behaviors.
+ * // Use options for context scoping, binary search, public reads, or total-count behavior.
  * const response = await getListData(
  *   {
  *     dataElementId: 'student',
@@ -397,6 +406,9 @@ export async function getListData<TRecord extends Record<string, unknown> = Reco
 
     const isPublic = options?.isPublic ?? false;
     const hasSearch = !!options?.search;
+    if (isPublic && options?.applyContext) {
+        throw new Error("applyContext cannot be used with public list data");
+    }
 
     // Determine which endpoint to use based on public access and search requirements
     let url: string;
@@ -441,8 +453,16 @@ export async function getListData<TRecord extends Record<string, unknown> = Reco
         console.log("Sending POST request to " + url + " (public endpoint)");
     }
 
+    const serverRequest = _toServerListDataRequest(request);
+    if (options?.applyContext) {
+        const navContext = buildApplyNavigationContext(true);
+        if (navContext) {
+            serverRequest.navContext = navContext;
+        }
+    }
+
     // Make the API request
-    let response = await axios.post(url, _toServerListDataRequest(request), {
+    let response = await axios.post(url, serverRequest, {
         headers,
         params: Object.keys(params).length > 0 ? params : undefined,
     });
@@ -466,6 +486,11 @@ export function getListDataAsObservable<TRecord extends Record<string, unknown> 
 
 type ServerListDataRequest<TRequest extends BaseListDataRequest = BaseListDataRequest> = Omit<TRequest, 'fields'> & {
     displayFields?: string[];
+    navContext?: {
+        navKey: string;
+        userProxyKey: string;
+        orgProxyKey: string;
+    };
 };
 
 function _toServerListDataRequest<TRequest extends BaseListDataRequest>(

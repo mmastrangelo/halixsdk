@@ -102,7 +102,7 @@
 
 import axios from 'axios';
 import { from, Observable, lastValueFrom } from 'rxjs';
-import { sandboxKey, serviceAddress, getAuthToken, userContext } from './sdk-general';
+import { sandboxKey, serviceAddress, getAuthToken, userContext, buildApplyContextParamValue } from './sdk-general';
 import type { FilterExpression } from './filter-expression';
 
 // ================================================================================
@@ -532,23 +532,4 @@ function buildSaveQueryString(opts?: SaveOptions, includeApplyContext?: boolean)
     }
 
     return params.toString();
-}
-
-function buildApplyContextParamValue(requireNavigationContext: boolean): string | undefined {
-    if (!userContext?.navigationContext) {
-        if (requireNavigationContext) {
-            throw new Error("navigationContext is required but not available on userContext");
-        }
-
-        return undefined;
-    }
-
-    const navigationContext = userContext.navigationContext as any;
-    if (!navigationContext.navigationKey) {
-        throw new Error("navigationContext is missing navigationKey");
-    }
-
-    const userProxyKey = userContext.userProxyKey ?? "";
-    const orgProxyKey = userContext.orgProxyKey ?? navigationContext.orgProxyKey ?? "";
-    return `${navigationContext.navigationKey}|${userProxyKey}|${orgProxyKey}`;
 }

@@ -110,6 +110,39 @@ export interface UserContext {
     }
 }
 
+export interface ApplyNavigationContext {
+    navKey: string;
+    userProxyKey: string;
+    orgProxyKey: string;
+}
+
+export function buildApplyContextParamValue(requireNavigationContext: boolean): string | undefined {
+    if (!userContext?.navigationContext) {
+        if (requireNavigationContext) {
+            throw new Error("navigationContext is required but not available on userContext");
+        }
+
+        return undefined;
+    }
+
+    const navigationContext = userContext.navigationContext as any;
+    if (!navigationContext.navigationKey) {
+        throw new Error("navigationContext is missing navigationKey");
+    }
+
+    const userProxyKey = userContext.userProxyKey ?? "";
+    const orgProxyKey = userContext.orgProxyKey ?? navigationContext.orgProxyKey ?? "";
+    return `${navigationContext.navigationKey}|${userProxyKey}|${orgProxyKey}`;
+}
+
+export function buildApplyNavigationContext(requireNavigationContext: boolean): ApplyNavigationContext | undefined {
+    const value = buildApplyContextParamValue(requireNavigationContext);
+    if (!value) return undefined;
+
+    const [navKey, userProxyKey, orgProxyKey] = value.split("|");
+    return { navKey, userProxyKey, orgProxyKey };
+}
+
 /**
  * IncomingEventBody is an interface defining the properties of an incoming event body. The halix
  * platform provides these properties when an action is triggered.
