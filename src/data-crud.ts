@@ -20,8 +20,8 @@
  *
  * @usage
  * ## When to Use
- * - **Read objects without specifying parent scope** → `getAccessibleObjects`
- * - **Filtered bounded accessible-record reads without pagination, totals, server sort, or list field projection** → `getAccessibleObjects`
+ * - **Filtered accessible-record reads without list behavior** → `getAccessibleObjects`
+ * - **Naturally small reference/dimension sets** → unfiltered `getAccessibleObjects`
  * - **Read specific accessible objects by key list** → `getObjects`
  * - **Get single object by key** → `getObject`
  * - **Fetch a known parent's child records** → `getRelatedObjects`
@@ -29,13 +29,13 @@
  * - **Delete single object** → `deleteObject`
  *
  * ## Record Retrieval Decision
- * - Use filtered `getAccessibleObjects` for bounded accessible-record reads where you do not need pagination,
- *   total count, server sort, or list-specific field projection. Pass its optional filter argument
- *   when the relevant subset can be expressed by date, status, foreign key, or other schema-backed fields.
+ * - Use `getAggregateData` from the data-aggregate module for counts, sums, rankings, and grouped metrics.
+ * - Use filtered `getAccessibleObjects` for bounded record reads that do not need list pagination,
+ *   totals, sort, or projection.
+ * - Use unfiltered `getAccessibleObjects` only for naturally small reference/dimension sets.
  * - Use `getRelatedObjects` when the component already has a concrete parent key and is fetching
  *   that parent's children.
  * - Use `getListData` from the lists module for paged list UIs and list-management workflows.
- * - Use `getAggregateData` from the data-aggregate module for counts, sums, rankings, and grouped metrics.
  *
  * ## When NOT to Use
  * - **High-cardinality report reads without a narrowing filter**
@@ -46,7 +46,7 @@
  * ## Key Functions
  * | Function | Use For |
  * |----------|---------|
- * | `getAccessibleObjects` | Read filtered/bounded objects the current user can access (no parent scope needed) |
+ * | `getAccessibleObjects` | Filtered accessible reads; unfiltered only for small reference/dimension sets |
  * | `getObjects` | Read accessible objects from a specific key list |
  * | `getObject` | Single object by key |
  * | `getRelatedObjects` | Children of a known parent record |
@@ -64,12 +64,12 @@
  * );
  *
  * @example
- * // Get all accessible recipes only when the accessible set is naturally small
- * const recipes = await hx.getAccessibleObjects('recipe');
- *
- * @example
  * // Get accessible recipes from a known key list
  * const recipes = await hx.getObjects('recipe', recipeKeys);
+ *
+ * @example
+ * // Unfiltered accessible reads are for naturally small reference/dimension sets
+ * const categories = await hx.getAccessibleObjects('category');
  *
  * @example
  * // Get single recipe

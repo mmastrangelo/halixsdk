@@ -70,12 +70,15 @@ export interface AggregationGroup {
  * AggregationSort defines a secondary sort field for aggregated results.
  */
 export interface AggregationSort {
-    /** The field to sort by (can include relationship paths with dots) */
-    sortField: string;
-    /** Sort direction ('asc' or 'desc') */
-    sortDirection: 'asc' | 'desc';
-    /** The aggregation type to sort by (must match an aggregation in the request) */
-    sortAggregation: AggregationType;
+    /** The attribute or relationship path to sort by, e.g. "totalAmount" or "customer.lastName" */
+    attributeId: string;
+    /** Whether to sort in descending order (true) or ascending order (false, default) */
+    descending?: boolean;
+    /**
+     * The aggregation type to sort by when `attributeId` refers to an aggregated measure.
+     * Omit this when sorting by a group field.
+     */
+    sortAggregation?: AggregationType;
 }
 
 /**
@@ -130,7 +133,8 @@ export interface AggregationRequest {
 
     /**
      * List of secondary sort specifications for the aggregated results.
-     * Groups are the primary sorts; these are additional sorting criteria.
+     * Use [{ attributeId, descending }] for sorted aggregate results.
+     * Add sortAggregation when sorting by an aggregated measure.
      */
     sort?: AggregationSort[];
 
@@ -352,6 +356,11 @@ export class AggregationResponse {
  *   }, {
  *     aggregation: 'Sum',
  *     aggregationField: 'totalAmount'
+ *   }],
+ *   sort: [{
+ *     attributeId: 'totalAmount',
+ *     descending: true,
+ *     sortAggregation: 'Sum'
  *   }]
  * });
  * 
@@ -380,10 +389,38 @@ export async function getAggregateData(request: AggregationRequest): Promise<Agg
 
     console.log("Sending POST request to " + url + " with token " + authToken);
 
-    // Make the API request
-    let response = await axios.post(url, request, { headers });
+    // Make the API request. The public SDK sort shape is
+    // { attributeId, descending }; the aggregate endpoint still expects
+    // { sortField, sortDirection }, so translate at the boundary.
+    let response = await axios.post(url, toAggregateDataServiceRequest(request), { headers });
 
     return new AggregationResponse(response.data.data);
+}
+
+type AggregateDataServiceSort = {
+    sortField: string;
+    sortDirection: 'asc' | 'desc';
+    sortAggregation?: AggregationType;
+};
+
+type AggregateDataServiceRequest = Omit<AggregationRequest, 'sort'> & {
+    sort?: AggregateDataServiceSort[];
+};
+
+function toAggregateDataServiceRequest(request: AggregationRequest): AggregateDataServiceRequest {
+    const { sort, ...rest } = request;
+    if (!sort) {
+        return rest;
+    }
+
+    return {
+        ...rest,
+        sort: sort.map((sortItem) => ({
+            sortField: sortItem.attributeId,
+            sortDirection: sortItem.descending ? 'desc' : 'asc',
+            ...(sortItem.sortAggregation ? { sortAggregation: sortItem.sortAggregation } : {})
+        }))
+    };
 }
 
 /**

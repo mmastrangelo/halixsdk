@@ -105,8 +105,8 @@ describe('getAggregateData / getAggregateDataAsObservable', () => {
                 }]
             }],
             sort: [{
-                sortField: 'totalAmount',
-                sortDirection: 'desc',
+                attributeId: 'totalAmount',
+                descending: true,
                 sortAggregation: 'Sum'
             }],
             aggregations: [
@@ -118,7 +118,14 @@ describe('getAggregateData / getAggregateDataAsObservable', () => {
 
         expect(mockedAxios.post).toHaveBeenCalledWith(
             'https://test-service/sandboxes/testSandbox/aggregateData',
-            request,
+            {
+                ...request,
+                sort: [{
+                    sortField: 'totalAmount',
+                    sortDirection: 'desc',
+                    sortAggregation: 'Sum'
+                }]
+            },
             {
                 headers: {
                     Authorization: 'Bearer TEST_TOKEN'
