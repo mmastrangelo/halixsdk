@@ -21,7 +21,7 @@
  * @usage
  * ## When to Use
  * - **Read objects without specifying parent scope** → `getAccessibleObjects`
- * - **Bounded accessible-record reads without pagination, totals, server sort, or list field projection** → `getAccessibleObjects`, with a filter when date/status/foreign-key fields can narrow the payload
+ * - **Filtered bounded accessible-record reads without pagination, totals, server sort, or list field projection** → `getAccessibleObjects`
  * - **Read specific accessible objects by key list** → `getObjects`
  * - **Get single object by key** → `getObject`
  * - **Fetch a known parent's child records** → `getRelatedObjects`
@@ -29,7 +29,7 @@
  * - **Delete single object** → `deleteObject`
  *
  * ## Record Retrieval Decision
- * - Use `getAccessibleObjects` for bounded accessible-record reads where you do not need pagination,
+ * - Use filtered `getAccessibleObjects` for bounded accessible-record reads where you do not need pagination,
  *   total count, server sort, or list-specific field projection. Pass its optional filter argument
  *   when the relevant subset can be expressed by date, status, foreign key, or other schema-backed fields.
  * - Use `getRelatedObjects` when the component already has a concrete parent key and is fetching
@@ -39,7 +39,7 @@
  *
  * ## When NOT to Use
  * - **High-cardinality report reads without a narrowing filter**
- * - **List UI pagination, explicit totals, server sort/filter, or field projection** → use lists skill with `getListData`
+ * - **Paged list UI pagination, explicit totals, server sort, or list field projection** → use lists skill with `getListData`
  * - **Bulk updates** → use lists skill with `massEdit`
  * - **Aggregations** → use data-aggregate skill
  *

@@ -18,8 +18,8 @@
  * - Supports related object retrieval
  * - Pagination
  * - Sorting
- * - Filtering
- * - Search
+ * - Filtering within a paged list UI
+ * - Search within a paged list UI
  * - Mass edit operations (bulk update multiple records)
  * - Mass delete operations (bulk delete multiple records)
  */
@@ -283,7 +283,7 @@ export interface MassChangeResponse {
  * 
  * Common usage:
  * - Use `getListData` when you are building a paged list UI or list-management workflow:
- *   pagination, explicit totals, server-side sort/filter, field projection, search, selection,
+ *   pagination, explicit totals, server-side sort for the visible list, field projection, search, selection,
  *   or bulk operations.
  * - Do not choose `getListData` only because the task is a report. Prefer `getAccessibleObjects`
  *   for bounded accessible-record reads without list behavior, `getRelatedObjects` when a
@@ -300,6 +300,9 @@ export interface MassChangeResponse {
  * - Do not use `getListData` as a generic bulk-data loader for reports. Use filtered
  *   `getAccessibleObjects`, `getRelatedObjects` with a concrete parent key, or `getAggregateData`
  *   whenever those can answer the data need directly.
+ * - Do not choose `getListData` only because you need a filter. For non-list report/search reads,
+ *   use filtered `getAccessibleObjects`, `getRelatedObjects` with a concrete parent key,
+ *   `getObjects` for explicit key lists, or `getAggregateData`.
  *
  * Response shape:
  * - `response.data` is the row array.
