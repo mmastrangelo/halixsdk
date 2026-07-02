@@ -32,7 +32,15 @@ describe('getListData / getListDataAsObservable', () => {
                     orgProxy: { objType: 'Business' },
                     orgProxyKey: 'op1',
                     orgKey: 'org1',
-                    userProxyKey: 'up1'
+                    userProxyKey: 'up1',
+                    navigationContext: {
+                        navigationKey: 'nav1',
+                        navLevel: 'organization',
+                        userProxyElementId: 'customer',
+                        orgProxyElementId: 'business',
+                        userProxyRequired: false,
+                        orgProxyKey: 'navOrg1'
+                    }
                 },
                 params: {},
                 authToken: 'TEST_TOKEN'
@@ -107,6 +115,60 @@ describe('getListData / getListDataAsObservable', () => {
             })
         );
         expect(result).toEqual(mockResponse.data);
+    });
+
+    it('sends navigation context when applyContext is true', async () => {
+        const mockResponse = {
+            data: {
+                data: [{ objKey: 'customer1', name: 'Ada' }],
+                total: 1,
+                selectedRow: 0,
+                pageNumber: 1
+            }
+        };
+        mockedAxios.post.mockResolvedValue(mockResponse);
+
+        const request = {
+            dataElementId: 'customer',
+            pageNumber: 1,
+            pageSize: 20,
+            fields: ['name']
+        };
+
+        const result = await getListData(request, { applyContext: true });
+
+        expect(mockedAxios.post).toHaveBeenCalledWith(
+            'https://test-service/list/sandboxes/testSandbox/listdata',
+            {
+                dataElementId: 'customer',
+                pageNumber: 1,
+                pageSize: 20,
+                displayFields: ['name'],
+                navContext: {
+                    navKey: 'nav1',
+                    userProxyKey: 'up1',
+                    orgProxyKey: 'op1'
+                }
+            },
+            expect.objectContaining({
+                headers: expect.objectContaining({
+                    Authorization: 'Bearer TEST_TOKEN'
+                })
+            })
+        );
+        expect(result).toEqual(mockResponse.data);
+    });
+
+    it('rejects public listdata with applyContext', async () => {
+        const request = {
+            dataElementId: 'product',
+            pageNumber: 1,
+            pageSize: 20
+        };
+
+        await expect(getListData(request, { isPublic: true, applyContext: true }))
+            .rejects.toThrow('applyContext cannot be used with public list data');
+        expect(mockedAxios.post).not.toHaveBeenCalled();
     });
 
     it('calls authenticated search endpoint with search parameters', async () => {
