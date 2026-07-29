@@ -16,7 +16,7 @@
 
 import axios from 'axios';
 import { from, Observable, lastValueFrom } from 'rxjs';
-import { serviceAddress, getAuthToken, sandboxKey } from './sdk-general';
+import { serviceAddress, getAuthToken, sandboxKey } from './sdk-general.js';
 
 // ================================================================================
 // TYPES

@@ -20,7 +20,7 @@
 
 import axios from 'axios';
 import { from, Observable, lastValueFrom } from 'rxjs';
-import { sandboxKey, serviceAddress, getAuthToken, userContext } from './sdk-general';
+import { sandboxKey, serviceAddress, getAuthToken, userContext } from './sdk-general.js';
 
 // ================================================================================
 // INTERFACES
@@ -298,4 +298,3 @@ export async function downloadResource(resourceKey: string): Promise<{ blob: Blo
 export function downloadResourceAsObservable(resourceKey: string): Observable<{ blob: Blob; fileName: string }> {
     return from(downloadResource(resourceKey));
 }
-

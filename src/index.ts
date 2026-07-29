@@ -49,7 +49,7 @@ export {
     // Response Helpers
     prepareSuccessResponse,
     prepareErrorResponse
-} from './sdk-general';
+} from './sdk-general.js';
 
 // ================================================================================
 // FILTER EXPRESSIONS
@@ -57,7 +57,7 @@ export {
 
 export {
     type FilterExpression
-} from './filter-expression';
+} from './filter-expression.js';
 
 // ================================================================================
 // DATA CRUD FUNCTIONS
@@ -90,7 +90,7 @@ export {
     deleteRelatedObjectAsObservable,
     deleteRelatedObjects,
     deleteRelatedObjectsAsObservable
-} from './data-crud';
+} from './data-crud.js';
 
 // ================================================================================
 // ACCESS FUNCTIONS
@@ -150,7 +150,7 @@ export {
     canWriteDataElementAsObservable,
     canDeleteDataElement,
     canDeleteDataElementAsObservable,
-} from './access';
+} from './access.js';
 
 // ================================================================================
 // CONTENT FUNCTIONS
@@ -171,7 +171,7 @@ export {
     createOrUpdateResourceAsObservable,
     downloadResource,
     downloadResourceAsObservable
-} from './content';
+} from './content.js';
 
 // ================================================================================
 // MESSAGING FUNCTIONS
@@ -187,7 +187,7 @@ export {
     // Messaging Functions
     sendMessage,
     sendMessageAsObservable
-} from './messaging';
+} from './messaging.js';
 
 // ================================================================================
 // PREFERENCE FUNCTIONS
@@ -199,7 +199,7 @@ export {
     getOrganizationPreference,
     getUserPreferenceAsObservable,
     getOrganizationPreferenceAsObservable
-} from './preferences';
+} from './preferences.js';
 
 // ================================================================================
 // LIST DATA FUNCTIONS
@@ -226,7 +226,7 @@ export {
     massEditAsObservable,
     massDelete,
     massDeleteAsObservable
-} from './lists';
+} from './lists.js';
 
 // ================================================================================
 // DATA AGGREGATE FUNCTIONS
@@ -249,7 +249,7 @@ export {
     // Functions
     getAggregateData,
     getAggregateDataAsObservable
-} from './data-aggregate';
+} from './data-aggregate.js';
 
 // ================================================================================
 // PAYMENT FUNCTIONS
@@ -264,7 +264,7 @@ export {
     // Functions
     submitStandalonePayment,
     submitStandalonePaymentAsObservable
-} from './payments';
+} from './payments.js';
 
 // ================================================================================
 // INVOICE FUNCTIONS
@@ -280,7 +280,7 @@ export {
     getInvoicesMatchingReminder,
     listEnrolledOrganizations,
     getReminderDeliveryCoverage
-} from './invoices';
+} from './invoices.js';
 
 // ================================================================================
 // AI FUNCTIONS
@@ -293,7 +293,7 @@ export {
     // AI Functions
     sendAIMessage,
     sendAIMessageAsObservable
-} from './ai';
+} from './ai.js';
 
 // ================================================================================
 // UTILITY FUNCTIONS
@@ -304,4 +304,4 @@ export {
     compareValues,
     getValueFromObject,
     debounceFn
-} from './utilities';
+} from './utilities.js';

@@ -24,8 +24,8 @@
 
 import axios from 'axios';
 import { from, Observable, lastValueFrom } from 'rxjs';
-import { sandboxKey, serviceAddress, getAuthToken } from './sdk-general';
-import type { FilterExpression } from './filter-expression';
+import { sandboxKey, serviceAddress, getAuthToken } from './sdk-general.js';
+import type { FilterExpression } from './filter-expression.js';
 
 // ================================================================================
 // INTERFACES

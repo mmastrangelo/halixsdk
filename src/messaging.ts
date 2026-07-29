@@ -15,7 +15,7 @@
 
 import axios from 'axios';
 import { from, Observable, lastValueFrom } from 'rxjs';
-import { sandboxKey, serviceAddress, getAuthToken } from './sdk-general';
+import { sandboxKey, serviceAddress, getAuthToken } from './sdk-general.js';
 
 // ================================================================================
 // ENUMS & CONSTANTS
@@ -159,5 +159,4 @@ export async function sendMessage(orgProxyElementId: string, orgProxyKey: string
 export function sendMessageAsObservable(orgProxyElementId: string, orgProxyKey: string, message: MessageRequest): Observable<void> {
     return from(sendMessage(orgProxyElementId, orgProxyKey, message));
 }
-
 

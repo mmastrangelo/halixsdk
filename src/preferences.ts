@@ -15,7 +15,7 @@
 
 import axios from 'axios';
 import { from, Observable, lastValueFrom } from 'rxjs';
-import { serviceAddress, getAuthToken, userContext, sandboxKey } from './sdk-general';
+import { serviceAddress, getAuthToken, userContext, sandboxKey } from './sdk-general.js';
 
 // ================================================================================
 // PREFERENCE RETRIEVAL FUNCTIONS

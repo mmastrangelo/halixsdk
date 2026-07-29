@@ -14,8 +14,8 @@
 
 import axios from 'axios';
 import { lastValueFrom } from 'rxjs';
-import { sandboxKey, serviceAddress, getAuthToken } from './sdk-general';
-import { getAccessibleObjects } from './data-crud';
+import { sandboxKey, serviceAddress, getAuthToken } from './sdk-general.js';
+import { getAccessibleObjects } from './data-crud.js';
 
 export interface InvoiceDueItem {
     /** Invoice (sales transaction) key. */

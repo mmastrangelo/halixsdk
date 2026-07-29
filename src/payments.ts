@@ -22,7 +22,7 @@
 
 import axios from 'axios';
 import { from, Observable, lastValueFrom } from 'rxjs';
-import { sandboxKey, serviceAddress, getAuthToken, userContext } from './sdk-general';
+import { sandboxKey, serviceAddress, getAuthToken, userContext } from './sdk-general.js';
 
 const STANDALONE_PAYMENT_URL = 'payments/sandboxes/:sandboxKey/standalonePayment';
 const ASSUMED_PAYER_TYPE = 'SolutionUserProxy';

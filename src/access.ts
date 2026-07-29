@@ -100,7 +100,7 @@
 
 import axios from 'axios';
 import { from, lastValueFrom, Observable } from 'rxjs';
-import { getAuthToken, sandboxKey, serviceAddress } from './sdk-general';
+import { getAuthToken, sandboxKey, serviceAddress } from './sdk-general.js';
 
 /**
  * A data scope assigned to a user as part of a sandbox scope entry.
