@@ -52,6 +52,19 @@ export {
 } from './sdk-general.js';
 
 // ================================================================================
+// SERVER ACTION INVOCATION
+// ================================================================================
+
+export {
+    MAX_ACTION_INVOCATION_TIMEOUT_MS,
+    ActionInvocationError,
+    type ActionInvocationOptions,
+    type ActionResult,
+    invokeAction,
+    invokeActionAsObservable,
+} from './invocation.js';
+
+// ================================================================================
 // FILTER EXPRESSIONS
 // ================================================================================
 

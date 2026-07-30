@@ -86,6 +86,7 @@ This action pattern is typical for use in Halix’s Lambda-style runtime environ
 | Function | Description |
 |----------|-------------|
 | `initialize(event)` | Initializes the SDK with event context |
+| `invokeAction(...)` / `invokeActionAsObservable(...)` | Invoke a browser-enabled server Action once |
 | `getObject(...)` / `getObjectAsObservable(...)` | Retrieve a single object |
 | `getRelatedObjects(...)` / `getRelatedObjectsAsObservable(...)` | Retrieve related objects |
 | `saveRelatedObject(...)` / `saveRelatedObjectAsObservable(...)` | Save objects and relationships |
@@ -97,6 +98,39 @@ This action pattern is typical for use in Halix’s Lambda-style runtime environ
 
 Notes:
 - Functions that interact with services require `initialize(event)` to have been called; they depend on `userContext`, `sandboxKey`, and `serviceAddress`.
+
+---
+
+## Server Action Invocation
+
+Browser components can invoke a server Action by key or ID through the authenticated canonical route:
+
+```ts
+const result = await hx.invokeAction<{ duplicateCount: number }>(
+  'mark-duplicates',
+  {
+    params: { contactKey },
+  },
+);
+
+console.log(result.value?.duplicateCount);
+```
+
+`orgProxyKey` and `userProxyKey` default from the initialized `userContext`. They are only hints: the server validates them against the current same-origin session and sandbox before selecting an organization Action or settings override.
+
+Invocations are synchronous and are never automatically retried. The default and maximum browser timeout is 55 seconds, matching the verified ingress bound. An Action can perform non-idempotent work, so callers decide whether a retry is safe.
+
+When starting work without awaiting it immediately, always attach rejection handling:
+
+```ts
+void hx.invokeAction('refresh-dashboard', {
+  params: { dashboardKey },
+}).catch((error) => {
+  console.error('Dashboard refresh failed', error);
+});
+```
+
+`ActionInvocationError` covers HTTP failures, Lambda function failures, `responseType: "error"`, and any response with `isError: true`.
 
 ---
 
