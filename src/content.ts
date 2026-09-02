@@ -65,8 +65,6 @@ export async function getOrCreateResource(resourceKey: string | null, fileToUplo
         let url = `${serviceAddress}/sandboxes/${sandboxKey}/contentResource/${resourceKey}`;
         let authToken = await lastValueFrom(getAuthToken());
 
-        console.log("Sending GET request to " + url + " with token " + authToken);
-
         let response = await axios.get(url, {
             headers: { "Authorization": `Bearer ${authToken}` },
         });
@@ -134,8 +132,6 @@ export async function saveResource(resource: ContentResource): Promise<ContentRe
     let url = `${serviceAddress}/sandboxes/${sandboxKey}/contentResource`;
     let authToken = await lastValueFrom(getAuthToken());
 
-    console.log("Sending POST request to " + url + " with token " + authToken);
-
     let response = await axios.post(url, JSON.stringify(resource), {
         headers: { "Authorization": `Bearer ${authToken}` },
         params: params,
@@ -164,8 +160,6 @@ export async function sendFileContents(resourceKey: string, fileToUpload: File |
 
     let url = `${serviceAddress}/filecontent/${sandboxKey}/${resourceKey}`;
     let authToken = await lastValueFrom(getAuthToken());
-
-    console.log("Sending file upload request to " + url + " with token " + authToken);
 
     let formData = new FormData();
     formData.append("fileUpload", fileToUpload);
@@ -275,8 +269,6 @@ export async function downloadResource(resourceKey: string): Promise<{ blob: Blo
 
     const url = `${serviceAddress}/filecontent/${sandboxKey}/${resourceKey}`;
     const authToken = await lastValueFrom(getAuthToken());
-
-    console.log("Sending GET request to " + url + " with token " + authToken);
 
     const response = await axios.get(url, {
         headers: { "Authorization": `Bearer ${authToken}` },

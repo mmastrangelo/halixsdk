@@ -86,8 +86,6 @@ async function getPreferenceInternal(prefID: string, ownerElementID: string, own
 
     let authToken = await lastValueFrom(getAuthToken());
 
-    console.log("Sending GET request to " + url + " with token " + authToken);
-
     let response = await axios.get(url, {
         headers: { "Authorization": `Bearer ${authToken}` },
         params: { sandboxKey },

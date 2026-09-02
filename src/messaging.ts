@@ -143,8 +143,6 @@ export async function sendMessage(orgProxyElementId: string, orgProxyKey: string
 
     let authToken = await lastValueFrom(getAuthToken());
 
-    console.log("Sending POST request to " + url + " with token " + authToken);
-
     await axios.post(url, serverRequest, {
         headers: { "Authorization": `Bearer ${authToken}` },
     });
@@ -159,4 +157,3 @@ export async function sendMessage(orgProxyElementId: string, orgProxyKey: string
 export function sendMessageAsObservable(orgProxyElementId: string, orgProxyKey: string, message: MessageRequest): Observable<void> {
     return from(sendMessage(orgProxyElementId, orgProxyKey, message));
 }
-

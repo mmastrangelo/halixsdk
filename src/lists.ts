@@ -448,7 +448,6 @@ export async function getListData<TRecord extends Record<string, unknown> = Reco
         let authToken = await lastValueFrom(getAuthToken());
         headers.Authorization = `Bearer ${authToken}`;
 
-        console.log("Sending POST request to " + url + " with token " + authToken);
     } else {
         console.log("Sending POST request to " + url + " (public endpoint)");
     }
@@ -556,8 +555,6 @@ export async function massEdit(request: MassEditRequest): Promise<MassChangeResp
         Authorization: `Bearer ${authToken}`
     };
 
-    console.log("Sending POST request to " + url + " with token " + authToken);
-
     // Make the API request
     let response = await axios.post(url, _toServerMassEditRequest(request), { headers });
 
@@ -598,8 +595,6 @@ export async function massDelete(request: MassDeleteRequest): Promise<MassChange
     let headers: any = {
         Authorization: `Bearer ${authToken}`
     };
-
-    console.log("Sending POST request to " + url + " with token " + authToken);
 
     // Make the API request
     let response = await axios.post(url, _toServerMassDeleteRequest(request), { headers });

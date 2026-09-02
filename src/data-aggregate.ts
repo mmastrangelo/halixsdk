@@ -387,8 +387,6 @@ export async function getAggregateData(request: AggregationRequest): Promise<Agg
         Authorization: `Bearer ${authToken}`
     };
 
-    console.log("Sending POST request to " + url + " with token " + authToken);
-
     // Make the API request. The public SDK sort shape is
     // { attributeId, descending }; the aggregate endpoint still expects
     // { sortField, sortDirection }, so translate at the boundary.

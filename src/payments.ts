@@ -138,8 +138,6 @@ export async function submitStandalonePayment(request: StandalonePaymentRequest)
         },
     };
 
-    console.log('Sending POST request to ' + url + ' with token ' + authToken);
-
     const response = await axios.post(url, payload, {
         headers: { Authorization: `Bearer ${authToken}` },
     });

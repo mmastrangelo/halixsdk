@@ -151,8 +151,6 @@ export async function getObject(dataElementId: string, key: string, fetchedRelat
 
     let authToken = await lastValueFrom(getAuthToken());
 
-    console.log("Sending GET request to " + url + " with token " + authToken);
-
     let response = await axios.get(url, {
         headers: { "Authorization": `Bearer ${authToken}` },
         params: params,
@@ -202,8 +200,6 @@ export async function getRelatedObjects(parentElementId: string, parentKey: stri
 
     let authToken = await lastValueFrom(getAuthToken());
 
-    console.log("Sending GET request to " + url + " with token " + authToken);
-
     let response = await axios.get(url, {
         headers: { "Authorization": `Bearer ${authToken}` },
         params: params,
@@ -240,8 +236,6 @@ export async function getAccessibleObjects(dataElementId: string, filter?: Filte
     let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${dataElementId}`;
 
     let authToken = await lastValueFrom(getAuthToken());
-
-    console.log("Sending GET request to " + url + " with token " + authToken);
 
     let response = await axios.get(url, {
         headers: { "Authorization": `Bearer ${authToken}` },
@@ -282,8 +276,6 @@ export async function getObjects(dataElementId: string, keys: string[], filter?:
 
     let authToken = await lastValueFrom(getAuthToken());
 
-    console.log("Sending GET request to " + url + " with token " + authToken);
-
     let response = await axios.get(url, {
         headers: { "Authorization": `Bearer ${authToken}` },
         params: params,
@@ -323,8 +315,6 @@ export async function saveObject(dataElementId: string, objectToSave: SaveBody, 
 
     let authToken = await lastValueFrom(getAuthToken());
 
-    console.log("Sending POST request to " + url + " with token " + authToken);
-
     let response = await axios.post(url, objectToSave, {
         headers: { "Authorization": `Bearer ${authToken}` },
     });
@@ -360,8 +350,6 @@ export async function saveRelatedObject(parentElementId: string, parentKey: stri
     let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${parentElementId}/${parentKey}/${elementId}?${queryString}`;
 
     let authToken = await lastValueFrom(getAuthToken());
-
-    console.log("Sending POST request to " + url + " with token " + authToken);
 
     let response = await axios.post(url, objectToSave, {
         headers: { "Authorization": `Bearer ${authToken}` },
@@ -401,8 +389,6 @@ export async function deleteObject(dataElementId: string, key: string): Promise<
     let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${dataElementId}/${key}`;
     let authToken = await lastValueFrom(getAuthToken());
 
-    console.log("Sending DELETE request to " + url + " with token " + authToken);
-
     let response = await axios.delete(url, {
         headers: { "Authorization": `Bearer ${authToken}` },
     });
@@ -436,8 +422,6 @@ export async function deleteRelatedObject(parentElementId: string, parentKey: st
 
     let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${parentElementId}/${parentKey}/${childElementId}/${childKey}`;
     let authToken = await lastValueFrom(getAuthToken());
-
-    console.log("Sending DELETE request to " + url + " with token " + authToken);
 
     let response = await axios.delete(url, {
         headers: { "Authorization": `Bearer ${authToken}` },
@@ -473,8 +457,6 @@ export async function deleteRelatedObjects(parentElementId: string, parentKey: s
 
     let url = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${parentElementId}/${parentKey}/${childElementId}`;
     let authToken = await lastValueFrom(getAuthToken());
-
-    console.log("Sending DELETE request to " + url + " with token " + authToken);
 
     let response = await axios.delete(url, {
         headers: { "Authorization": `Bearer ${authToken}` },
