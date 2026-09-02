@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import axios from 'axios';
-import { lastValueFrom } from 'rxjs';
+import { lastValueFrom, Observable, of, throwError } from 'rxjs';
 import {
     ActionInvocationError,
     initialize,
@@ -21,7 +21,11 @@ const mockedAxios = axios as unknown as {
     post: ReturnType<typeof vi.fn>;
 };
 
-function initializeBrowserContext() {
+function initializeBrowserContext(actionRequestExecutor?: (
+    actionRef: string,
+    body: unknown,
+    timeoutMs: number,
+) => Observable<unknown>) {
     initialize({
         sandboxKey: 'sbx~test',
         serviceAddress: 'https://svc/',
@@ -43,6 +47,7 @@ function initializeBrowserContext() {
         },
         params: {},
         authToken: 'TOKEN',
+        actionRequestExecutor,
     });
 }
 
@@ -75,9 +80,45 @@ describe('invokeAction', () => {
         });
         expect(body.params).toEqual({ contactKey: 'con~1' });
         expect(body.actionSubject).toEqual({ objKey: 'con~1' });
-        expect(config.headers.Authorization).toBe('Bearer TOKEN');
+        expect(config.headers).toEqual({ Authorization: 'Bearer TOKEN' });
         expect(config.timeout).toBe(MAX_ACTION_INVOCATION_TIMEOUT_MS);
         expect(config.withCredentials).toBe(true);
+    });
+
+    it('uses a host-owned executor for an isolated preview session', async () => {
+        const executor = vi.fn().mockReturnValue(of({
+            responseType: 'singleValueAction',
+            isError: false,
+            value: 'ok',
+        }));
+        initializeBrowserContext(executor);
+
+        await invokeAction<string>('analyze');
+
+        expect(mockedAxios.post).not.toHaveBeenCalled();
+        expect(executor).toHaveBeenCalledWith(
+            'analyze',
+            expect.objectContaining({ params: {}, actionSubjectKeys: [] }),
+            MAX_ACTION_INVOCATION_TIMEOUT_MS,
+        );
+    });
+
+    it('normalizes host HTTP errors without exposing host authentication details', async () => {
+        const executor = vi.fn().mockReturnValue(throwError(() => ({
+            status: 409,
+            error: {
+                message: 'Deployment is still pending.',
+                errorCode: 'deployment_pending',
+            },
+        })));
+        initializeBrowserContext(executor);
+
+        await expect(invokeAction<string>('analyze')).rejects.toMatchObject({
+            name: 'ActionInvocationError',
+            message: 'Deployment is still pending.',
+            status: 409,
+            errorCode: 'deployment_pending',
+        });
     });
 
     it('uses explicit proxy hints and defaults params to an empty object', async () => {

@@ -33,6 +33,16 @@ import { Observable, of } from 'rxjs';
 export let getAuthToken: () => Observable<string>;
 
 /**
+ * Host-owned request executor for browser Action requests. Builder previews provide this callback
+ * so the host can attach its isolated session without exposing refresh credentials to page code.
+ */
+export let actionRequestExecutor: ((
+    actionRef: string,
+    body: unknown,
+    timeoutMs: number,
+) => Observable<unknown>) | undefined;
+
+/**
  * Sandbox key identifier for the current solution. Set by initialize().
  */
 export let sandboxKey: string;
@@ -77,6 +87,8 @@ export function initialize(event: { body?: IncomingEventBody }) {
 
     if (body) {
         ({ sandboxKey, serviceAddress, actionSubject, userContext, params } = body);
+
+        actionRequestExecutor = body.actionRequestExecutor;
 
         if (body.authToken) {
             getAuthToken = () => of(body.authToken);
@@ -150,6 +162,12 @@ export function buildApplyNavigationContext(requireNavigationContext: boolean): 
 export interface IncomingEventBody {
     authToken?: string;
     authTokenRetriever?: () => Observable<string>;
+    /** Lets an isolated browser host execute Action requests without exposing its refresh credential. */
+    actionRequestExecutor?: (
+        actionRef: string,
+        body: unknown,
+        timeoutMs: number,
+    ) => Observable<unknown>;
     sandboxKey: string;
     serviceAddress: string;
     actionSubject: any;

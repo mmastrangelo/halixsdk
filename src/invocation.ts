@@ -13,6 +13,7 @@
 import axios from 'axios';
 import { from, lastValueFrom, Observable } from 'rxjs';
 import {
+    actionRequestExecutor,
     actionSubject as initializedActionSubject,
     getAuthToken,
     sandboxKey,
@@ -112,11 +113,6 @@ export async function invokeAction<T>(
         );
     }
 
-    const authToken = await lastValueFrom(getAuthToken());
-    const baseAddress = serviceAddress.replace(/\/+$/, '');
-    const url =
-        `${baseAddress}/actions/sandboxes/${encodeURIComponent(sandboxKey)}` +
-        `/executeAction/${encodeURIComponent(actionRef)}`;
     const body = {
         userContext: {
             orgProxyKey: options.orgProxyKey ?? userContext?.orgProxyKey ?? '',
@@ -129,14 +125,26 @@ export async function invokeAction<T>(
     };
 
     try {
-        const response = await axios.post<ActionResult<T>>(url, body, {
-            headers: {
-                Authorization: `Bearer ${authToken}`,
-            },
-            timeout,
-            withCredentials: true,
-        });
-        const result = response.data;
+        let result: ActionResult<T>;
+        if (actionRequestExecutor) {
+            result = await lastValueFrom(
+                actionRequestExecutor(actionRef, body, timeout),
+            ) as ActionResult<T>;
+        } else {
+            const authToken = await lastValueFrom(getAuthToken());
+            const baseAddress = serviceAddress.replace(/\/+$/, '');
+            const url =
+                `${baseAddress}/actions/sandboxes/${encodeURIComponent(sandboxKey)}` +
+                `/executeAction/${encodeURIComponent(actionRef)}`;
+            const response = await axios.post<ActionResult<T>>(url, body, {
+                headers: {
+                    Authorization: `Bearer ${authToken}`,
+                },
+                timeout,
+                withCredentials: true,
+            });
+            result = response.data;
+        }
         if (
             result?.responseType === 'error' ||
             result?.isError === true ||
@@ -151,6 +159,12 @@ export async function invokeAction<T>(
         }
         const axiosError = error as {
             isAxiosError?: boolean;
+            status?: number;
+            error?: {
+                message?: string;
+                errorMessage?: string;
+                errorCode?: string;
+            };
             message?: string;
             response?: {
                 status?: number;
@@ -161,14 +175,14 @@ export async function invokeAction<T>(
                 };
             };
         };
-        const errorResponse = axiosError.response?.data;
+        const errorResponse = axiosError.response?.data ?? axiosError.error;
         throw new ActionInvocationError(
             errorResponse?.message ??
             errorResponse?.errorMessage ??
             axiosError.message ??
             'Action invocation failed.',
             {
-                status: axiosError.response?.status,
+                status: axiosError.response?.status ?? axiosError.status,
                 errorCode: errorResponse?.errorCode,
                 response: errorResponse,
                 cause: error,
