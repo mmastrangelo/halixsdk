@@ -1,0 +1,292 @@
+// Halix SDK License v1.0
+// Copyright (c) 2025 halix.io LLC.
+//
+// This source code is licensed for use **only** within applications
+// running on the Halix platform, in accordance with Halix SDK guidelines.
+//
+// Unauthorized use outside the Halix platform is prohibited.
+// Full license terms available in the LICENSE file.
+
+/**
+ * @module @halix/action-sdk/content
+ * @description Content resource management functions for the Halix Platform action SDK. This module
+ * handles file uploads, content resources, and file storage operations.
+ * 
+ * Key features:
+ * - Retrieve content resources (images, documents, etc.)
+ * - Upload/save content resources (images, documents, etc.)
+ * - Download file resources in the browser (e.g. as a button click handler)
+ */
+
+import axios from 'axios';
+import { from, Observable, lastValueFrom } from 'rxjs';
+import { sandboxKey, serviceAddress, getAuthToken, userContext } from './sdk-general.js';
+
+// ================================================================================
+// INTERFACES
+// ================================================================================
+
+/**
+ * ContentResource is an interface defining the properties of a content resource.
+ */
+export interface ContentResource {
+    objKey?: string;
+    isPublic: boolean;
+    resourceType: string;
+    tags: string[];
+    organizationKey: string;
+    sandboxKey: string;
+    userKey: string;
+    fileName?: string;
+    fileSize?: number;
+    mimeType?: string;
+    contentType?: string;
+    name?: string | null;
+    extension?: string | null;
+    deserialize?: (data: any) => ContentResource;
+}
+
+// ================================================================================
+// CONTENT RESOURCE FUNCTIONS
+// ================================================================================
+
+/**
+ * Retrieves an existing content resource by key, or creates a new one if key is null.
+ * 
+ * @returns Promise<ContentResource>
+ */
+export async function getOrCreateResource(resourceKey: string | null, fileToUpload: File | Blob | null, publicFlag: boolean, resourceType: string, tags: string[]): Promise<ContentResource> {
+
+    if (!userContext) {
+        throw new Error("userContext is required but not available; check that the initialize function has been called");
+    }
+
+    if (resourceKey) {
+        let url = `${serviceAddress}/sandboxes/${sandboxKey}/contentResource/${resourceKey}`;
+        let authToken = await lastValueFrom(getAuthToken());
+
+        let response = await axios.get(url, {
+            headers: { "Authorization": `Bearer ${authToken}` },
+        });
+
+        let resource: ContentResource = response.data;
+        if (fileToUpload) {
+            resource.contentType = fileToUpload.type;
+
+            // Null out the name and extension; the server will set these if they are blank
+            resource.name = null;
+            resource.extension = null;
+        }
+        return resource;
+    }
+
+    let newResource: ContentResource = {
+        isPublic: publicFlag,
+        resourceType: resourceType,
+        tags: tags,
+        organizationKey: userContext.orgKey,
+        sandboxKey: sandboxKey,
+        userKey: userContext.user.objKey
+    };
+
+    if (fileToUpload) {
+        newResource.contentType = fileToUpload.type;
+
+        // Null out the name and extension; the server will set these if they are blank
+        newResource.name = null;
+        newResource.extension = null;
+    }
+    
+    return newResource;
+}
+
+/**
+ * Observable version of getOrCreateResource. See getOrCreateResource for details.
+ */
+export function getOrCreateResourceAsObservable(resourceKey: string | null, fileToUpload: File | Blob | null, publicFlag: boolean, resourceType: string, tags: string[]): Observable<ContentResource> {
+    return from(getOrCreateResource(resourceKey, fileToUpload, publicFlag, resourceType, tags));
+}
+
+/**
+ * Saves a content resource with appropriate ownership based on context (solution builder vs org view).
+ * 
+ * @returns Promise<ContentResource>
+ */
+export async function saveResource(resource: ContentResource): Promise<ContentResource> {
+
+    if (!userContext) {
+        throw new Error("userContext is required but not available; check that the initialize function has been called");
+    }
+
+    let params: any = {};
+
+    if (userContext.orgProxy.objType === "Solution") {
+        // When in the solution builder view, content is owned by the solution. The solution key is the org proxy key in
+        // the builder view.
+        params.solutionKey = userContext.orgProxyKey;
+    } else {
+        params.organizationKey = userContext.orgKey;
+        params.userKey = userContext.user.objKey;
+    }
+
+    let url = `${serviceAddress}/sandboxes/${sandboxKey}/contentResource`;
+    let authToken = await lastValueFrom(getAuthToken());
+
+    let response = await axios.post(url, JSON.stringify(resource), {
+        headers: { "Authorization": `Bearer ${authToken}` },
+        params: params,
+    });
+
+    return response.data;
+}
+
+/**
+ * Observable version of saveResource. See saveResource for details.
+ */
+export function saveResourceAsObservable(resource: ContentResource): Observable<ContentResource> {
+    return from(saveResource(resource));
+}
+
+/**
+ * Uploads file contents to a resource via FormData.
+ * 
+ * @returns Promise<boolean> - true if successful
+ */
+export async function sendFileContents(resourceKey: string, fileToUpload: File | Blob, publicFlag: boolean): Promise<boolean> {
+
+    if (!userContext) {
+        throw new Error("userContext is required but not available; check that the initialize function has been called");
+    }
+
+    let url = `${serviceAddress}/filecontent/${sandboxKey}/${resourceKey}`;
+    let authToken = await lastValueFrom(getAuthToken());
+
+    let formData = new FormData();
+    formData.append("fileUpload", fileToUpload);
+    formData.append("scopeKeyPath", userContext.orgProxyKey);
+    formData.append("public", String(publicFlag));
+
+    let response = await axios.post(url, formData, {
+        headers: { 
+            "Authorization": `Bearer ${authToken}`,
+            "Content-Type": "multipart/form-data"
+        },
+    });
+
+    return response.status === 204;
+}
+
+/**
+ * Observable version of sendFileContents. See sendFileContents for details.
+ */
+export function sendFileContentsAsObservable(resourceKey: string, fileToUpload: File | Blob, publicFlag: boolean): Observable<boolean> {
+    return from(sendFileContents(resourceKey, fileToUpload, publicFlag));
+}
+
+/**
+ * Creates or updates a content resource and uploads file contents. If resourceKey is provided, updates existing; otherwise creates new.
+ * 
+ * @returns Promise<ContentResource> with uploaded file metadata
+ */
+export async function createOrUpdateResource(resourceKey: string | null, fileToUpload: File | Blob, publicFlag: boolean, resourceType: string, tags: string[]): Promise<ContentResource> {
+
+    if (!userContext) {
+        throw new Error("userContext is required but not available; check that the initialize function has been called");
+    }
+
+    // Get or create the resource
+    let resource = await getOrCreateResource(resourceKey, fileToUpload, publicFlag, resourceType, tags);
+    
+    // Save the resource to get the objKey if it's new
+    let savedResource = await saveResource(resource);
+    
+    // Upload the file contents
+    if (!savedResource.objKey) {
+        throw new Error("Resource was saved but no objKey was returned");
+    }
+    
+    let uploadSuccess = await sendFileContents(savedResource.objKey, fileToUpload, publicFlag);
+    
+    if (!uploadSuccess) {
+        throw new Error("Failed to upload file contents");
+    }
+    
+    // Get the updated resource with file metadata
+    let updatedResource = await getOrCreateResource(savedResource.objKey, fileToUpload, publicFlag, resourceType, []);
+    
+    // Set the name if it's not set and we have a File with a name
+    if (updatedResource && !updatedResource.name && fileToUpload instanceof File) {
+        updatedResource.name = fileToUpload.name;
+    }
+    
+    return updatedResource;
+}
+
+/**
+ * Observable version of createOrUpdateResource. See createOrUpdateResource for details.
+ */
+export function createOrUpdateResourceAsObservable(resourceKey: string | null, fileToUpload: File | Blob, publicFlag: boolean, resourceType: string, tags: string[]): Observable<ContentResource> {
+    return from(createOrUpdateResource(resourceKey, fileToUpload, publicFlag, resourceType, tags));
+}
+
+/**
+ * Fetches a file resource from the Halix content service and returns it as a `Blob` along with
+ * the filename derived from the `Content-Disposition` response header (falling back to
+ * `resourceKey` when the header is absent).
+ *
+ * This function is environment-agnostic: it performs only the authenticated HTTP fetch and leaves
+ * all presentation logic to the caller.
+ *
+ * **Browser download example** — trigger the native Save dialog from a click handler:
+ * ```js
+ * button.addEventListener('click', async () => {
+ *     const { blob, fileName } = await downloadResource(recipe.attachmentKey);
+ *     const url = URL.createObjectURL(blob);
+ *     const a = document.createElement('a');
+ *     a.href = url;
+ *     a.download = fileName;
+ *     a.click();
+ *     URL.revokeObjectURL(url);
+ * });
+ * ```
+ *
+ * **Node.js example** — write the blob to disk:
+ * ```js
+ * const { blob } = await downloadResource(recipe.attachmentKey);
+ * const buffer = Buffer.from(await blob.arrayBuffer());
+ * fs.writeFileSync('attachment.pdf', buffer);
+ * ```
+ *
+ * @param resourceKey - Key of the content resource to fetch
+ * @returns Promise resolving to `{ blob, fileName }`
+ */
+export async function downloadResource(resourceKey: string): Promise<{ blob: Blob; fileName: string }> {
+    if (!getAuthToken) {
+        const errorMessage = 'SDK not initialized.';
+        console.error(errorMessage);
+        throw new Error(errorMessage);
+    }
+
+    const url = `${serviceAddress}/filecontent/${sandboxKey}/${resourceKey}`;
+    const authToken = await lastValueFrom(getAuthToken());
+
+    const response = await axios.get(url, {
+        headers: { "Authorization": `Bearer ${authToken}` },
+        responseType: 'blob',
+    });
+
+    const blob: Blob = response.data;
+
+    const disposition: string = response.headers['content-disposition'] ?? '';
+    const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+    const fileName = (match?.[1] ?? '').replace(/['"]/g, '') || resourceKey;
+
+    return { blob, fileName };
+}
+
+/**
+ * Observable version of downloadResource. See downloadResource for details.
+ */
+export function downloadResourceAsObservable(resourceKey: string): Observable<{ blob: Blob; fileName: string }> {
+    return from(downloadResource(resourceKey));
+}

@@ -17,7 +17,13 @@
     "es2016",
     "dom"
   ],
-  "files": [
-      "src/index.ts"
+  "include": [
+      "src/**/*"
+  ],
+  "exclude": [
+      "node_modules",
+      "lib",
+      "tests",
+      "**/*.test.ts"
   ]
 }
