@@ -24,12 +24,13 @@
  *
  * A signed-in shopper uses the payer cart of the navigation's user proxy element. An anonymous shopper on a public
  * page uses the guest cart that the host page holds: the functions send its token instead of a session, and the
- * server allows a guest to add only objects whose `guestPurchaseAllowed` is true.
+ * server allows a guest to add only objects whose `guestPurchaseAllowed` is true. When the page holds no guest cart
+ * yet, `addToCart` asks the host to create one; reading the cart never creates one.
  */
 
 import axios from 'axios';
 import { from, lastValueFrom, Observable } from 'rxjs';
-import { sandboxKey, serviceAddress, getAuthToken, getGuestCartHandle, userContext } from './sdk-general.js';
+import { sandboxKey, serviceAddress, getAuthToken, getGuestCartHandle, ensureGuestCartHandle, userContext } from './sdk-general.js';
 
 const CURRENT_CART_URL = 'ecommerce/sandboxes/:sandboxKey/organizations/:organizationKey/currentCart';
 const ADD_ITEM_URL = 'ecommerce/sandboxes/:sandboxKey/shoppingCart/:shoppingCartKey/addItem';
@@ -222,7 +223,7 @@ export async function addToCart(request: AddToCartRequest): Promise<CartItem[]> 
     }
     assertQuantity(quantity);
 
-    const access = await cartAccess();
+    const access = await cartAccess({ createGuestCart: true });
     const current = await loadCurrentCart(access);
     const cartKey = current.cart.objKey;
     const url = cartUrl(ADD_ITEM_URL, { shoppingCartKey: cartKey });
@@ -369,8 +370,8 @@ interface CurrentCartResponse {
 }
 
 // An undefined token means an anonymous shopper: the guest cart token replaces the session, so no
-// Authorization header is sent.
-async function cartAccess(): Promise<CartAccess> {
+// Authorization header is sent. With createGuestCart, a shopper with no guest cart gets one from the host.
+async function cartAccess(options: { createGuestCart?: boolean } = {}): Promise<CartAccess> {
     if (!getAuthToken) {
         const errorMessage = 'SDK not initialized.';
         console.error(errorMessage);
@@ -386,7 +387,15 @@ async function cartAccess(): Promise<CartAccess> {
         return { headers: { Authorization: `Bearer ${authToken}` }, payerElementId, guest: false };
     }
 
-    const handle = getGuestCartHandle();
+    let handle = getGuestCartHandle();
+    if (!handle?.cartToken && options.createGuestCart && ensureGuestCartHandle) {
+        try {
+            handle = await ensureGuestCartHandle();
+        } catch (error) {
+            const reason = error instanceof Error ? error.message : String(error);
+            throw new CommerceError(`A guest cart could not be started: ${reason}`, { cause: error });
+        }
+    }
     if (!handle?.cartToken) {
         throw new Error('The shopper is not signed in and has no guest cart. Guest checkout is available only on a public page that holds a guest cart; otherwise the shopper must sign in.');
     }

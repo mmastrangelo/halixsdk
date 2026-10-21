@@ -309,6 +309,49 @@ describe('guest cart', () => {
         expect(cartEvents).toEqual([]);
     });
 
+    it('asks the host to create a guest cart when adding without one, then uses its token', async () => {
+        const ensureGuestCartHandle = vi.fn().mockResolvedValue({ cartKey: 'guestCart', cartToken: 'NEW' });
+        initializeGuest({ ensureGuestCartHandle });
+        mockedAxios.get.mockResolvedValueOnce({ data: { cart: guestCart, items: [] } });
+        mockedAxios.post.mockResolvedValueOnce({ data: [item('i1', 4)] });
+
+        await addToCart({ dataElementId: 'eventTicket', objKey: 'ticket1' });
+
+        expect(ensureGuestCartHandle).toHaveBeenCalledTimes(1);
+        expect(mockedAxios.get.mock.calls[0][1].headers).toEqual({ 'X-Halix-Cart-Token': 'NEW' });
+        expect(mockedAxios.post.mock.calls[0][2].headers).toEqual({ 'X-Halix-Cart-Token': 'NEW' });
+        expect(cartEvents).toEqual([{ cartKey: 'guestCart', itemCount: 1, total: 4, source: 'sdk' }]);
+    });
+
+    it('never creates a guest cart to read the cart, or when one is held or the shopper is signed in', async () => {
+        const ensureGuestCartHandle = vi.fn().mockResolvedValue({ cartKey: 'guestCart', cartToken: 'NEW' });
+        initializeGuest({ ensureGuestCartHandle });
+        await expect(getCart()).rejects.toThrow('Guest checkout');
+
+        initializeGuest({ guestCartHandle: { cartKey: 'guestCart', cartToken: 'GUEST' }, ensureGuestCartHandle });
+        mockedAxios.get.mockResolvedValueOnce({ data: { cart: guestCart, items: [] } });
+        mockedAxios.post.mockResolvedValueOnce({ data: [] });
+        await addToCart({ dataElementId: 'eventTicket', objKey: 'ticket1' });
+
+        initializeSignedIn({ ensureGuestCartHandle });
+        mockedAxios.get.mockResolvedValueOnce({ data: { cart: { objKey: 'cart1' }, items: [] } });
+        mockedAxios.post.mockResolvedValueOnce({ data: [] });
+        await addToCart({ dataElementId: 'eventTicket', objKey: 'ticket1' });
+
+        expect(ensureGuestCartHandle).not.toHaveBeenCalled();
+    });
+
+    it('reports a host that cannot start a guest cart without calling the server', async () => {
+        initializeGuest({ ensureGuestCartHandle: vi.fn().mockRejectedValue(new Error('Guest purchases require a public page.')) });
+
+        const error = await addToCart({ dataElementId: 'eventTicket', objKey: 'ticket1' }).catch(e => e);
+
+        expect(error).toBeInstanceOf(CommerceError);
+        expect(error.message).toBe('A guest cart could not be started: Guest purchases require a public page.');
+        expect(mockedAxios.get).not.toHaveBeenCalled();
+        expect(cartEvents).toEqual([]);
+    });
+
     it('does not keep a handle from an earlier initialization', async () => {
         initializeGuest();
         initializeGuest({});

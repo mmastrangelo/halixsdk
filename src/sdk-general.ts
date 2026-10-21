@@ -49,6 +49,12 @@ export let actionRequestExecutor: ((
 export let getGuestCartHandle: () => GuestCartHandle | undefined = () => undefined;
 
 /**
+ * Creates the anonymous shopper's guest cart on a public page, or returns the one the host already holds. Set by
+ * initialize() when the host supplies it; addToCart calls it when there is neither a session nor a guest cart.
+ */
+export let ensureGuestCartHandle: (() => Promise<GuestCartHandle>) | undefined;
+
+/**
  * Sandbox key identifier for the current solution. Set by initialize().
  */
 export let sandboxKey: string;
@@ -98,6 +104,9 @@ export function initialize(event: { body?: IncomingEventBody }) {
 
         // Read from the body on each call so a host getter reports a handle created after initialization.
         getGuestCartHandle = () => body.guestCartHandle;
+        ensureGuestCartHandle = typeof body.ensureGuestCartHandle === 'function'
+            ? () => body.ensureGuestCartHandle()
+            : undefined;
 
         if (body.authToken) {
             getAuthToken = () => of(body.authToken);
@@ -182,6 +191,11 @@ export interface IncomingEventBody {
      * may define it as a getter that reports a handle created after initialization.
      */
     guestCartHandle?: GuestCartHandle;
+    /**
+     * Creates the guest cart of an anonymous shopper on a public page, or returns the one the host holds. Only
+     * addToCart uses it, so reading the cart never creates one.
+     */
+    ensureGuestCartHandle?: () => Promise<GuestCartHandle>;
     sandboxKey: string;
     serviceAddress: string;
     actionSubject: any;
