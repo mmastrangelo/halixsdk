@@ -85,6 +85,7 @@ try {
 
             assert.equal(hx.sandboxKey, 'sbx~esm');
             assert.equal(typeof hx.getObject, 'function');
+            assert.equal(typeof hx.addToCart, 'function');
             assert.deepEqual(
                 hx.prepareSuccessResponse({
                     responseType: 'singleValueAction',
@@ -118,6 +119,7 @@ try {
 
             assert.equal(hx.sandboxKey, 'sbx~cjs');
             assert.equal(typeof hx.getObject, 'function');
+            assert.equal(typeof hx.addToCart, 'function');
             assert.equal(hx.prepareErrorResponse('cjs-ok').errorMessage, 'cjs-ok');
         `,
         'commonjs',

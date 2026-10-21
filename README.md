@@ -92,6 +92,7 @@ This action pattern is typical for use in Halix’s Lambda-style runtime environ
 | `saveRelatedObject(...)` / `saveRelatedObjectAsObservable(...)` | Save objects and relationships |
 | `deleteRelatedObject(...)` / `deleteRelatedObjectAsObservable(...)` | Delete a single related object |
 | `deleteRelatedObjects(...)` / `deleteRelatedObjectsAsObservable(...)` | Delete multiple related objects (uses `keys` query param) |
+| `addToCart(...)` / `addToCartAsObservable(...)` | Add an object of a payable element to the shopper's cart |
 | `submitStandalonePayment(...)` / `submitStandalonePaymentAsObservable(...)` | Finalize a payment from a gateway preauth result |
 | `prepareSuccessResponse(...)` | Create a success response |
 | `prepareErrorResponse(...)` | Create an error response |
@@ -147,9 +148,46 @@ These helpers simplify working with content resources and file uploads.
 
 ---
 
+## Commerce
+
+Custom elements sell objects by adding them to the platform shopping cart. Payments are collected only through the cart: the platform checkout prices the cart on the server and takes the payment, and there is no direct charge from custom element code.
+
+An object can be added when its data element is payable, which means the element has `name` and a numeric `price`. The price always comes from the server, from the object's `price` or the sandbox pricing action; the add request carries no amount.
+
+```ts
+// In a HalixLitElement, after initializeContext(context, hx)
+try {
+  await hx.addToCart({ dataElementId: 'eventTicket', objKey: ticket.objKey, quantity: 2 });
+  await hx.openCart(this.context.navigate);
+} catch (error) {
+  // A rejected add carries the server's reason, e.g. an object outside its sale dates
+  this.errorMessage = error.message;
+}
+```
+
+| Function | Description |
+|----------|-------------|
+| `getCart()` / `getCartAsObservable()` | The current cart with its items, `itemCount`, `subTotal`, `taxTotal` and `total` |
+| `addToCart({ dataElementId, objKey, quantity?, formData? })` / `addToCartAsObservable(...)` | Add an object (quantity defaults to 1) and return the cart's items |
+| `updateCartItemQuantity(cartItemKey, quantity)` / `updateCartItemQuantityAsObservable(...)` | Change a line's quantity and return the cart's items |
+| `removeFromCart(cartItemKey)` / `removeFromCartAsObservable(...)` | Remove a line and return the cart's items |
+| `openCart(navigate)` | Navigate to the solution's shopping cart with the context's `navigate`: `hx.openCart(this.context.navigate)` |
+| `cartChanges()` | Observable of cart changes from the SDK, other elements and the shell, for a cart badge |
+
+Notes:
+- A signed-in user's cart is the payer cart for the navigation's user proxy element (`userContext.navigationContext.userProxyElementId`).
+- The cart item key passed to `updateCartItemQuantity` and `removeFromCart` is `items[i].shoppingCartItem.objKey`.
+- Every successful change dispatches a `halix:cart-changed` event on `document` with `{ cartKey, itemCount, total, source: 'sdk' }`, so the shell's cart icon updates. `cartChanges()` emits the same details.
+- A failed request throws `CommerceError`. When the cart rejects the object (not payable, disabled, outside its open and close dates), `errorCode` is `ShoppingCartValidationError` and the message is the server's reason.
+- Elements that only need a button can use the `halix-add-to-cart` platform element instead, configured with `AddToCartConfig` from `@halix/platform-elements-sdk`.
+
+---
+
 ## Payment Helpers
 
 Use `submitStandalonePayment(...)` after UI code has already produced a gateway preauth result and you need action code to finish the payment through the platform backend.
+
+> `submitStandalonePayment` is for server actions and the platform payment input. Custom elements do not collect payments with it; they add objects to the cart (see [Commerce](#commerce)).
 
 ```js
 const result = await hx.submitStandalonePayment({

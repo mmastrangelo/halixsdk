@@ -280,6 +280,35 @@ export {
 } from './payments.js';
 
 // ================================================================================
+// COMMERCE FUNCTIONS
+// ================================================================================
+
+export {
+    // Classes
+    CommerceError,
+
+    // Interfaces
+    type ShoppingCart,
+    type ShoppingCartItem,
+    type CartItem,
+    type Cart,
+    type AddToCartRequest,
+    type CartChange,
+
+    // Functions
+    getCart,
+    getCartAsObservable,
+    addToCart,
+    addToCartAsObservable,
+    updateCartItemQuantity,
+    updateCartItemQuantityAsObservable,
+    removeFromCart,
+    removeFromCartAsObservable,
+    openCart,
+    cartChanges
+} from './commerce.js';
+
+// ================================================================================
 // INVOICE FUNCTIONS
 // ================================================================================
 
