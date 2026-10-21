@@ -84,7 +84,8 @@ function validationError(message: string) {
 let cartEvents: CartChange[];
 
 beforeEach(() => {
-    vi.clearAllMocks();
+    // Reset rather than clear so a response queued by a failing test never reaches the next one.
+    vi.resetAllMocks();
     vi.stubGlobal('document', new EventTarget());
     cartEvents = [];
     document.addEventListener('halix:cart-changed', event => cartEvents.push((event as CustomEvent<CartChange>).detail));
@@ -198,11 +199,170 @@ describe('addToCart', () => {
         expect(mockedAxios.post).not.toHaveBeenCalled();
     });
 
-    it('requires a signed-in user', async () => {
-        initializeSignedIn({ authTokenRetriever: () => of(undefined) });
+    it('uses the signed-in session even when a guest handle is present', async () => {
+        initializeSignedIn({ guestCartHandle: { cartKey: 'guestCart', cartToken: 'GUEST' } });
+        mockedAxios.get.mockResolvedValueOnce({ data: { cart, items: [] } });
+        mockedAxios.post.mockResolvedValueOnce({ data: [] });
 
-        await expect(addToCart({ dataElementId: 'eventTicket', objKey: 'ticket1' })).rejects.toThrow('requires a signed-in user');
+        await addToCart({ dataElementId: 'eventTicket', objKey: 'ticket1' });
+
+        expect(mockedAxios.get.mock.calls[0][1].headers).toEqual({ Authorization: 'Bearer TOKEN' });
+        expect(mockedAxios.get.mock.calls[0][1].params).toEqual({ payerElementId: 'member' });
+        expect(mockedAxios.post.mock.calls[0][2].headers).toEqual({ Authorization: 'Bearer TOKEN' });
+    });
+});
+
+describe('guest cart', () => {
+    const guestCart = { objKey: 'guestCart', guest: true };
+    const guestHeaders = { 'X-Halix-Cart-Token': 'GUEST' };
+
+    function initializeGuest(body: Record<string, any> = { guestCartHandle: { cartKey: 'guestCart', cartToken: 'GUEST' } }) {
+        initializeSignedIn({
+            userContext: {
+                user: undefined,
+                orgKey: 'org1',
+                navigationContext: { navigationKey: 'publicNav', navLevel: 'organization', userProxyElementId: 'member' },
+            },
+            authTokenRetriever: () => of(undefined),
+            ...body,
+        });
+    }
+
+    function refusal(status: number, data: Record<string, any>) {
+        return Object.assign(new Error(`Request failed with status code ${status}`), { response: { status, data } });
+    }
+
+    it('loads the guest cart with the cart token, no Authorization header and no payer element', async () => {
+        initializeGuest();
+        mockedAxios.get.mockResolvedValueOnce({ data: { cart: guestCart, items: [item('i1', 8)] } });
+
+        const result = await getCart();
+
+        const [url, config] = mockedAxios.get.mock.calls[0];
+        expect(url).toBe(CURRENT_CART_URL);
+        expect(config.headers).toEqual(guestHeaders);
+        expect(config.params).toBeUndefined();
+        expect(result.cart.guest).toBe(true);
+        expect(result.total).toBe(8);
+    });
+
+    it('adds to the guest cart with the cart token on every request and dispatches the cart change', async () => {
+        initializeGuest();
+        mockedAxios.get.mockResolvedValueOnce({ data: { cart: guestCart, items: [] } });
+        mockedAxios.post.mockResolvedValueOnce({ data: [item('i1', 12, 0.6)] });
+
+        await addToCart({ dataElementId: 'eventTicket', objKey: 'ticket1' });
+
+        expect(mockedAxios.get.mock.calls[0][1].headers).toEqual(guestHeaders);
+        const [url, body, config] = mockedAxios.post.mock.calls[0];
+        expect(url).toBe('https://svc/ecommerce/sandboxes/sb/shoppingCart/guestCart/addItem');
+        expect(body).toEqual({ itemElementId: 'eventTicket', itemKey: 'ticket1', quantity: 1, formData: undefined });
+        expect(config.headers).toEqual(guestHeaders);
+        expect(cartEvents).toEqual([{ cartKey: 'guestCart', itemCount: 1, total: 12.6, source: 'sdk' }]);
+    });
+
+    it('sends the cart token on quantity updates and removals', async () => {
+        initializeGuest();
+        mockedAxios.get
+            .mockResolvedValueOnce({ data: { cart: guestCart, items: [item('i1', 5)] } })
+            .mockResolvedValueOnce({ data: [item('i1', 10)] })
+            .mockResolvedValueOnce({ data: { cart: guestCart, items: [item('i1', 10)] } });
+        mockedAxios.delete.mockResolvedValueOnce({ data: [] });
+
+        await updateCartItemQuantity('i1', 2);
+        await removeFromCart('i1');
+
+        expect(mockedAxios.get.mock.calls[1][1]).toEqual({ headers: guestHeaders, params: { quantity: 2 } });
+        expect(mockedAxios.delete.mock.calls[0][1]).toEqual({ headers: guestHeaders });
+        expect(cartEvents.map(change => change.itemCount)).toEqual([1, 0]);
+    });
+
+    it('reads a handle the host creates after initialization', async () => {
+        let handle: { cartKey: string; cartToken: string } | undefined;
+        // Defined on the body itself: spreading an object with a getter would copy its current value.
+        const body: Record<string, any> = {
+            sandboxKey: 'sb',
+            serviceAddress: 'https://svc',
+            actionSubject: {},
+            userContext: { orgKey: 'org1', navigationContext: { navigationKey: 'publicNav', userProxyElementId: 'member' } },
+            params: {},
+            authTokenRetriever: () => of(undefined),
+        };
+        Object.defineProperty(body, 'guestCartHandle', { get: () => handle, enumerable: true });
+        initialize({ body } as any);
+
+        await expect(getCart()).rejects.toThrow('Guest checkout');
+
+        handle = { cartKey: 'guestCart', cartToken: 'LATER' };
+        mockedAxios.get.mockResolvedValueOnce({ data: { cart: guestCart, items: [] } });
+        await getCart();
+
+        expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+        expect(mockedAxios.get.mock.calls[0][1].headers).toEqual({ 'X-Halix-Cart-Token': 'LATER' });
+    });
+
+    it('throws an error naming guest checkout when there is neither a token nor a handle', async () => {
+        initializeGuest({});
+
+        await expect(addToCart({ dataElementId: 'eventTicket', objKey: 'ticket1' })).rejects.toThrow('Guest checkout is available only on a public page');
         expect(mockedAxios.get).not.toHaveBeenCalled();
+        expect(cartEvents).toEqual([]);
+    });
+
+    it('does not keep a handle from an earlier initialization', async () => {
+        initializeGuest();
+        initializeGuest({});
+
+        await expect(getCart()).rejects.toThrow('not signed in');
+        expect(mockedAxios.get).not.toHaveBeenCalled();
+    });
+
+    it('reports a guest cart the server refuses with GuestCartAccessDenied', async () => {
+        initializeGuest();
+        mockedAxios.get.mockRejectedValueOnce(refusal(403, { status: 403, errorCode: 'GuestCartAccessDenied', message: 'guest cart token is invalid' }));
+
+        const error = await addToCart({ dataElementId: 'eventTicket', objKey: 'ticket1' }).catch(e => e);
+
+        expect(error).toBeInstanceOf(CommerceError);
+        expect(error.errorCode).toBe('GuestCartAccessDenied');
+        expect(error.status).toBe(403);
+        expect(error.message).toContain('guest cart is no longer available');
+        expect(error.message).toContain('guest cart token is invalid');
+        expect(mockedAxios.post).not.toHaveBeenCalled();
+        expect(cartEvents).toEqual([]);
+    });
+
+    it('reports the access rule refusal of a guest cart with the same error code', async () => {
+        initializeGuest();
+        mockedAxios.get.mockResolvedValueOnce({ data: { cart: guestCart, items: [] } });
+        mockedAxios.post.mockRejectedValueOnce(refusal(400, { status: 400, message: 'API access denied; reasons: [shopping cart access]' }));
+
+        const error = await addToCart({ dataElementId: 'eventTicket', objKey: 'ticket1' }).catch(e => e);
+
+        expect(error.errorCode).toBe('GuestCartAccessDenied');
+        expect(error.status).toBe(400);
+        expect(cartEvents).toEqual([]);
+    });
+
+    it('preserves the server message when a guest may not buy the object', async () => {
+        initializeGuest();
+        mockedAxios.get.mockResolvedValueOnce({ data: { cart: guestCart, items: [] } });
+        mockedAxios.post.mockRejectedValueOnce(validationError('Member Dues cannot be purchased by a guest'));
+
+        const error = await addToCart({ dataElementId: 'dues', objKey: 'dues1' }).catch(e => e);
+
+        expect(error.errorCode).toBe('ShoppingCartValidationError');
+        expect(error.message).toBe('Member Dues cannot be purchased by a guest');
+        expect(cartEvents).toEqual([]);
+    });
+
+    it('leaves a signed-in API access refusal unchanged', async () => {
+        mockedAxios.get.mockRejectedValueOnce(refusal(400, { status: 400, message: 'API access denied; reasons: [scope]' }));
+
+        const error = await getCart().catch(e => e);
+
+        expect(error.errorCode).toBeUndefined();
+        expect(error.message).toBe('API access denied; reasons: [scope]');
     });
 });
 

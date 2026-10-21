@@ -43,6 +43,12 @@ export let actionRequestExecutor: ((
 ) => Observable<unknown>) | undefined;
 
 /**
+ * Returns the guest cart handle of an anonymous shopper on a public page, or undefined. Set by initialize() and read
+ * on every call, because the host can create the handle after initialization. Used only by the commerce functions.
+ */
+export let getGuestCartHandle: () => GuestCartHandle | undefined = () => undefined;
+
+/**
  * Sandbox key identifier for the current solution. Set by initialize().
  */
 export let sandboxKey: string;
@@ -89,6 +95,9 @@ export function initialize(event: { body?: IncomingEventBody }) {
         ({ sandboxKey, serviceAddress, actionSubject, userContext, params } = body);
 
         actionRequestExecutor = body.actionRequestExecutor;
+
+        // Read from the body on each call so a host getter reports a handle created after initialization.
+        getGuestCartHandle = () => body.guestCartHandle;
 
         if (body.authToken) {
             getAuthToken = () => of(body.authToken);
@@ -168,11 +177,25 @@ export interface IncomingEventBody {
         body: unknown,
         timeoutMs: number,
     ) => Observable<unknown>;
+    /**
+     * Guest cart of an anonymous shopper on a public page. The commerce functions read it on every call, so a host
+     * may define it as a getter that reports a handle created after initialization.
+     */
+    guestCartHandle?: GuestCartHandle;
     sandboxKey: string;
     serviceAddress: string;
     actionSubject: any;
     userContext: UserContext;
     params: Record<string, any>;
+}
+
+/**
+ * GuestCartHandle names an anonymous shopper's guest cart. The token authorizes the cart's requests in place of a
+ * session; the host page creates and stores the handle.
+ */
+export interface GuestCartHandle {
+    cartKey: string;
+    cartToken: string;
 }
 
 /**

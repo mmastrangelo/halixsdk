@@ -33,6 +33,7 @@ export {
     // Common Interfaces
     type UserContext,
     type IncomingEventBody,
+    type GuestCartHandle,
     
     // Action Response Types
     type BaseActionResponse,

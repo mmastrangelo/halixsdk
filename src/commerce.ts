@@ -21,15 +21,22 @@
  *
  * Every successful cart change dispatches a `halix:cart-changed` event on `document`, which keeps the shell's
  * cart icon in step with element code; `cartChanges()` observes the same events for elements that show a badge.
+ *
+ * A signed-in shopper uses the payer cart of the navigation's user proxy element. An anonymous shopper on a public
+ * page uses the guest cart that the host page holds: the functions send its token instead of a session, and the
+ * server allows a guest to add only objects whose `guestPurchaseAllowed` is true.
  */
 
 import axios from 'axios';
 import { from, lastValueFrom, Observable } from 'rxjs';
-import { sandboxKey, serviceAddress, getAuthToken, userContext } from './sdk-general.js';
+import { sandboxKey, serviceAddress, getAuthToken, getGuestCartHandle, userContext } from './sdk-general.js';
 
 const CURRENT_CART_URL = 'ecommerce/sandboxes/:sandboxKey/organizations/:organizationKey/currentCart';
 const ADD_ITEM_URL = 'ecommerce/sandboxes/:sandboxKey/shoppingCart/:shoppingCartKey/addItem';
 const CART_ITEM_URL = 'ecommerce/sandboxes/:sandboxKey/shoppingCart/:shoppingCartKey/shoppingCartItem/:shoppingCartItemKey';
+const GUEST_CART_TOKEN_HEADER = 'X-Halix-Cart-Token';
+const GUEST_CART_ACCESS_DENIED = 'GuestCartAccessDenied';
+const SHOPPING_CART_VALIDATION_ERROR = 'ShoppingCartValidationError';
 const CART_CHANGED_EVENT = 'halix:cart-changed';
 const CART_CHANGE_SOURCE = 'sdk';
 const SHOPPING_CART_COMPONENT_ID = 'shoppingCart';
@@ -137,7 +144,8 @@ export interface CartChange {
 /**
  * CommerceError carries the server's message for a refused cart request. A request the cart rejects, such as an
  * object that is not payable, disabled or outside its sale dates, has `errorCode` 'ShoppingCartValidationError'
- * and the server's reason as its message.
+ * and the server's reason as its message. A guest cart the server no longer accepts, because it expired or was
+ * checked out, has `errorCode` 'GuestCartAccessDenied'.
  */
 export class CommerceError extends Error {
     /** HTTP status when the failure came from an HTTP response. */
@@ -168,7 +176,8 @@ export class CommerceError extends Error {
 
 /**
  * Returns the current shopper's cart with its items, item count and totals. A signed-in user's cart is the payer
- * cart for the navigation's user proxy element, created on first use.
+ * cart for the navigation's user proxy element, created on first use; an anonymous shopper's is the host page's
+ * guest cart.
  *
  * @returns Promise<Cart>
  * @throws CommerceError when the server refuses the request
@@ -192,8 +201,8 @@ export function getCartAsObservable(): Observable<Cart> {
 /**
  * Adds an object of a payable data element to the current shopper's cart and returns the cart's items. The
  * server prices the line and rejects an object whose element is not payable, that is disabled, or that is outside
- * its open and close dates; the thrown CommerceError carries the server's reason. A successful add dispatches
- * `halix:cart-changed`.
+ * its open and close dates, and for a guest any object whose `guestPurchaseAllowed` is not true; the thrown
+ * CommerceError carries the server's reason. A successful add dispatches `halix:cart-changed`.
  *
  * @param request - The object to add, the quantity (default 1) and optional form data
  * @returns Promise<CartItem[]> - the cart's items after the add
@@ -217,7 +226,7 @@ export async function addToCart(request: AddToCartRequest): Promise<CartItem[]> 
     const current = await loadCurrentCart(access);
     const cartKey = current.cart.objKey;
     const url = cartUrl(ADD_ITEM_URL, { shoppingCartKey: cartKey });
-    const items = await send<CartItem[]>(() => axios.post(url, {
+    const items = await send<CartItem[]>(access, () => axios.post(url, {
         itemElementId: dataElementId,
         itemKey: objKey,
         quantity,
@@ -254,7 +263,7 @@ export async function updateCartItemQuantity(cartItemKey: string, quantity: numb
     const current = await loadCurrentCart(access);
     const cartKey = current.cart.objKey;
     const url = cartUrl(CART_ITEM_URL, { shoppingCartKey: cartKey, shoppingCartItemKey: cartItemKey });
-    const items = await send<CartItem[]>(() => axios.get(url, {
+    const items = await send<CartItem[]>(access, () => axios.get(url, {
         headers: access.headers,
         params: { quantity },
     }));
@@ -287,7 +296,7 @@ export async function removeFromCart(cartItemKey: string): Promise<CartItem[]> {
     const current = await loadCurrentCart(access);
     const cartKey = current.cart.objKey;
     const url = cartUrl(CART_ITEM_URL, { shoppingCartKey: cartKey, shoppingCartItemKey: cartItemKey });
-    const items = await send<CartItem[]>(() => axios.delete(url, { headers: access.headers }));
+    const items = await send<CartItem[]>(access, () => axios.delete(url, { headers: access.headers }));
 
     dispatchCartChanged(cartKey, items);
     return items;
@@ -349,7 +358,9 @@ export function cartChanges(): Observable<CartChange> {
 
 interface CartAccess {
     headers: Record<string, string>;
-    payerElementId: string;
+    /** The signed-in payer element; a guest has none because the token names the cart. */
+    payerElementId?: string;
+    guest: boolean;
 }
 
 interface CurrentCartResponse {
@@ -357,6 +368,8 @@ interface CurrentCartResponse {
     items: CartItem[];
 }
 
+// An undefined token means an anonymous shopper: the guest cart token replaces the session, so no
+// Authorization header is sent.
 async function cartAccess(): Promise<CartAccess> {
     if (!getAuthToken) {
         const errorMessage = 'SDK not initialized.';
@@ -365,16 +378,19 @@ async function cartAccess(): Promise<CartAccess> {
     }
 
     const authToken = await lastValueFrom(getAuthToken(), { defaultValue: undefined });
-    if (!authToken) {
-        throw new Error('The shopping cart requires a signed-in user.');
+    if (authToken) {
+        const payerElementId = userContext?.navigationContext?.userProxyElementId;
+        if (!payerElementId) {
+            throw new Error('userContext.navigationContext.userProxyElementId is required for the shopping cart; the current navigation has no user proxy element.');
+        }
+        return { headers: { Authorization: `Bearer ${authToken}` }, payerElementId, guest: false };
     }
 
-    const payerElementId = userContext?.navigationContext?.userProxyElementId;
-    if (!payerElementId) {
-        throw new Error('userContext.navigationContext.userProxyElementId is required for the shopping cart; the current navigation has no user proxy element.');
+    const handle = getGuestCartHandle();
+    if (!handle?.cartToken) {
+        throw new Error('The shopper is not signed in and has no guest cart. Guest checkout is available only on a public page that holds a guest cart; otherwise the shopper must sign in.');
     }
-
-    return { headers: { Authorization: `Bearer ${authToken}` }, payerElementId };
+    return { headers: { [GUEST_CART_TOKEN_HEADER]: handle.cartToken }, guest: true };
 }
 
 async function loadCurrentCart(access: CartAccess): Promise<CurrentCartResponse> {
@@ -384,9 +400,9 @@ async function loadCurrentCart(access: CartAccess): Promise<CurrentCartResponse>
     }
 
     const url = cartUrl(CURRENT_CART_URL, { organizationKey });
-    const current = await send<CurrentCartResponse>(() => axios.get(url, {
+    const current = await send<CurrentCartResponse>(access, () => axios.get(url, {
         headers: access.headers,
-        params: { payerElementId: access.payerElementId },
+        params: access.payerElementId ? { payerElementId: access.payerElementId } : undefined,
     }));
     if (!current?.cart?.objKey) {
         throw new CommerceError('The current cart could not be resolved.', { response: current });
@@ -394,16 +410,16 @@ async function loadCurrentCart(access: CartAccess): Promise<CurrentCartResponse>
     return current;
 }
 
-async function send<T>(request: () => Promise<{ data: T }>): Promise<T> {
+async function send<T>(access: CartAccess, request: () => Promise<{ data: T }>): Promise<T> {
     try {
         const response = await request();
         return response.data;
     } catch (error) {
-        throw toCommerceError(error);
+        throw toCommerceError(error, access.guest);
     }
 }
 
-function toCommerceError(error: unknown): CommerceError {
+function toCommerceError(error: unknown, guest: boolean): CommerceError {
     const axiosError = error as {
         message?: string;
         response?: {
@@ -411,16 +427,28 @@ function toCommerceError(error: unknown): CommerceError {
             data?: { message?: string; errorMessage?: string; errorCode?: string; code?: string };
         };
     };
+    const status = axiosError?.response?.status;
     const body = axiosError?.response?.data;
-    return new CommerceError(
-        body?.message ?? body?.errorMessage ?? axiosError?.message ?? 'The cart request failed.',
-        {
-            status: axiosError?.response?.status,
-            errorCode: body?.errorCode ?? body?.code,
-            response: body,
-            cause: error,
-        },
-    );
+    const message = body?.message ?? body?.errorMessage ?? axiosError?.message ?? 'The cart request failed.';
+    const errorCode = body?.errorCode ?? body?.code;
+
+    if (guest && guestCartRefused(status, errorCode, body?.message)) {
+        return new CommerceError(
+            `The guest cart is no longer available; it may have expired or been checked out. (${message})`,
+            { status, errorCode: GUEST_CART_ACCESS_DENIED, response: body, cause: error },
+        );
+    }
+    return new CommerceError(message, { status, errorCode, response: body, cause: error });
+}
+
+// The same refusal test as the shell's guest cart handle: the access rule's 400 or the guest cart 403, never a
+// validation error.
+function guestCartRefused(status: number | undefined, errorCode: string | undefined, message: string | undefined): boolean {
+    if (errorCode === SHOPPING_CART_VALIDATION_ERROR) {
+        return false;
+    }
+    return (status === 403 && errorCode === GUEST_CART_ACCESS_DENIED) ||
+        (status === 400 && typeof message === 'string' && message.startsWith('API access denied'));
 }
 
 function cartUrl(template: string, pathParams: Record<string, string>): string {

@@ -176,6 +176,9 @@ try {
 
 Notes:
 - A signed-in user's cart is the payer cart for the navigation's user proxy element (`userContext.navigationContext.userProxyElementId`).
+- An anonymous shopper on a public page uses the guest cart the page holds. `initialize` takes it as `guestCartHandle` (`{ cartKey, cartToken }`) beside `authTokenRetriever`; `initializeContext` from `@halix/customelement-sdk` passes the context's handle. When the token retriever returns no token, the commerce functions send the handle's token in `X-Halix-Cart-Token` and no `Authorization` header. The handle is read on every call, so a guest cart the page creates after initialization is used.
+- A guest can add only objects whose `guestPurchaseAllowed` is true; any other add is rejected with the server's reason. With neither a token nor a guest cart the functions throw an error naming guest checkout, and a guest cart the server no longer accepts throws `CommerceError` with `errorCode` `GuestCartAccessDenied`.
+- Only the commerce functions use the guest cart; the other SDK modules are unchanged for anonymous shoppers.
 - The cart item key passed to `updateCartItemQuantity` and `removeFromCart` is `items[i].shoppingCartItem.objKey`.
 - Every successful change dispatches a `halix:cart-changed` event on `document` with `{ cartKey, itemCount, total, source: 'sdk' }`, so the shell's cart icon updates. `cartChanges()` emits the same details.
 - A failed request throws `CommerceError`. When the cart rejects the object (not payable, disabled, outside its open and close dates), `errorCode` is `ShoppingCartValidationError` and the message is the server's reason.
