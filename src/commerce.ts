@@ -77,9 +77,12 @@ export interface ShoppingCartItem {
     adjustedPrice: number;
     salesTax: number;
     calculatedPrice: number;
+    /** The add's form data; stored on the line but not shown in the cart. */
     cartItemFormData?: Record<string, unknown>;
     itemName?: string;
     itemDescription?: string;
+    /** Plain-text lines the cart row and the receipt show: the add's `displayInfo`, then any pricing notes. */
+    itemAdditionalInfo?: string[];
     [key: string]: any;
 }
 
@@ -126,8 +129,18 @@ export interface AddToCartRequest {
     objKey: string;
     /** Whole number of units to add; defaults to 1. */
     quantity?: number;
-    /** Optional cart item form data stored on the cart line. */
+    /**
+     * Optional form data stored on the cart line, such as the shopper's choices. It is not displayed in the cart;
+     * put text the shopper should see in `displayInfo`.
+     */
     formData?: Record<string, unknown>;
+    /**
+     * Optional plain-text lines the shopper sees on the cart row and the receipt, e.g. `['Reference: A-17']`. The
+     * server trims each line, drops empty ones, and rejects more than 5 lines, a line over 200 characters, or a line
+     * with line breaks, control characters or angle brackets. A repeat add that increases an existing line's
+     * quantity keeps that line's lines.
+     */
+    displayInfo?: string[];
 }
 
 /**
@@ -205,23 +218,30 @@ export function getCartAsObservable(): Observable<Cart> {
  * its open and close dates, and for a guest any object whose `guestPurchaseAllowed` is not true; the thrown
  * CommerceError carries the server's reason. A successful add dispatches `halix:cart-changed`.
  *
- * @param request - The object to add, the quantity (default 1) and optional form data
+ * @param request - The object to add, the quantity (default 1), optional form data and optional display lines
  * @returns Promise<CartItem[]> - the cart's items after the add
  * @throws CommerceError when the server rejects the add
  *
  * @example
  * try {
- *     await hx.addToCart({ dataElementId: 'eventTicket', objKey: ticket.objKey });
+ *     await hx.addToCart({
+ *         dataElementId: 'eventTicket',
+ *         objKey: ticket.objKey,
+ *         displayInfo: [`Seat: ${seat}`],
+ *     });
  * } catch (error) {
  *     this.errorMessage = error.message;
  * }
  */
 export async function addToCart(request: AddToCartRequest): Promise<CartItem[]> {
-    const { dataElementId, objKey, quantity = 1, formData } = request ?? ({} as AddToCartRequest);
+    const { dataElementId, objKey, quantity = 1, formData, displayInfo } = request ?? ({} as AddToCartRequest);
     if (!dataElementId || !objKey) {
         throw new Error('addToCart requires dataElementId and objKey.');
     }
     assertQuantity(quantity);
+    if (displayInfo !== undefined && !(Array.isArray(displayInfo) && displayInfo.every(line => typeof line === 'string'))) {
+        throw new Error('addToCart displayInfo must be an array of strings.');
+    }
 
     const access = await cartAccess({ createGuestCart: true });
     const current = await loadCurrentCart(access);
@@ -232,6 +252,7 @@ export async function addToCart(request: AddToCartRequest): Promise<CartItem[]> 
         itemKey: objKey,
         quantity,
         formData,
+        displayInfo,
     }, { headers: access.headers }));
 
     dispatchCartChanged(cartKey, items);

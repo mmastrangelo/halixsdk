@@ -168,6 +168,36 @@ describe('addToCart', () => {
         expect(mockedAxios.post.mock.calls[0][1].quantity).toBe(3);
     });
 
+    it('sends display lines alongside the hidden form data', async () => {
+        mockedAxios.get.mockResolvedValueOnce({ data: { cart, items: [] } });
+        mockedAxios.post.mockResolvedValueOnce({ data: [] });
+
+        await addToCart({
+            dataElementId: 'eventTicket',
+            objKey: 'ticket1',
+            formData: { seat: 'A1' },
+            displayInfo: ['Seat: A1', 'Reference: 0756'],
+        });
+
+        expect(mockedAxios.post.mock.calls[0][1]).toStrictEqual({
+            itemElementId: 'eventTicket',
+            itemKey: 'ticket1',
+            quantity: 1,
+            formData: { seat: 'A1' },
+            displayInfo: ['Seat: A1', 'Reference: 0756'],
+        });
+    });
+
+    it('rejects display lines that are not an array of strings before calling the server', async () => {
+        const bad = [{ displayInfo: 'Seat: A1' }, { displayInfo: ['Seat: A1', 7] }] as unknown[];
+        for (const extra of bad) {
+            await expect(addToCart({ dataElementId: 'eventTicket', objKey: 'ticket1', ...(extra as object) }))
+                .rejects.toThrow('displayInfo must be an array of strings');
+        }
+        expect(mockedAxios.get).not.toHaveBeenCalled();
+        expect(mockedAxios.post).not.toHaveBeenCalled();
+    });
+
     it('preserves the server validation message and does not dispatch a cart change', async () => {
         mockedAxios.get.mockResolvedValueOnce({ data: { cart, items: [] } });
         mockedAxios.post.mockRejectedValueOnce(validationError('Early Bird Ticket is no longer available for purchase'));
