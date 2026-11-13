@@ -458,6 +458,10 @@ export function saveRelatedObjectAsObservable(parentElementId: string, parentKey
  * else: no other saves, no outside calls, and no values kept from an earlier run. It may change the
  * object in place or return a new one. If it throws, the update stops and nothing is saved.
  *
+ * `timeoutMs` covers every wait in the call: getting the token, the read, `change`, the save and
+ * the pauses between attempts. A `change` still running when the time runs out is not waited for,
+ * and its result is not saved.
+ *
  * @param dataElementId - Data element ID of the object
  * @param key - Key of the existing object
  * @param change - Function that applies the change to the object's current values
@@ -489,27 +493,36 @@ export async function updateObject<T = any>(dataElementId: string, key: string, 
 
     let attempts = 0;
     while (attempts < maxAttempts) {
-        let remaining = deadline - Date.now();
-        if (remaining <= 0) {
+        if (deadline - Date.now() <= 0) {
             break;
         }
         attempts++;
 
-        const authToken = await lastValueFrom(getAuthToken());
-        const read = await axios.get(readUrl, {
-            headers: { "Authorization": `Bearer ${authToken}` },
-            timeout: remaining,
-        });
+        // Nothing is saved before the POST below, so running out of time anywhere before it ends
+        // the update with UpdateConflictError.
+        let authToken: string;
+        let version: string;
+        let changed: T;
+        try {
+            authToken = await beforeDeadline(lastValueFrom(getAuthToken()), deadline);
 
-        const version = readRecordVersion(read.headers);
-        if (!version) {
-            throw new Error('The service returned no record version, so updateObject cannot protect this change.');
+            const read = await readBeforeDeadline(readUrl, authToken, deadline);
+            const readVersion = readRecordVersion(read.headers);
+            if (!readVersion) {
+                throw new Error('The service returned no record version, so updateObject cannot protect this change.');
+            }
+            version = readVersion;
+
+            const current = read.data as T;
+            changed = (await beforeDeadline(Promise.resolve(change(current)), deadline)) ?? current;
+        } catch (err) {
+            if (err instanceof UpdateTimeExpired) {
+                break;
+            }
+            throw err;
         }
 
-        const current = read.data as T;
-        const changed = (await change(current)) ?? current;
-
-        remaining = deadline - Date.now();
+        const remaining = deadline - Date.now();
         if (remaining <= 0) {
             break;
         }
@@ -701,6 +714,53 @@ function readRecordVersion(headers: any): string | undefined {
         return undefined;
     }
     return String(value);
+}
+
+/** Thrown inside updateObject when its time allowed runs out before anything is saved. */
+class UpdateTimeExpired extends Error {
+    constructor() {
+        super('The time allowed for the update ran out.');
+        this.name = 'UpdateTimeExpired';
+    }
+}
+
+/**
+ * Waits for `work` until `deadline` (a Date.now() value) and rejects with UpdateTimeExpired when
+ * the deadline comes first. The work is not cancelled; its late result is ignored.
+ */
+function beforeDeadline<T>(work: Promise<T>, deadline: number): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new UpdateTimeExpired()), Math.max(0, deadline - Date.now()));
+        work.then(
+            value => { clearTimeout(timer); resolve(value); },
+            err => { clearTimeout(timer); reject(err); },
+        );
+    });
+}
+
+/**
+ * Reads the record for updateObject within the time left before `deadline`. A read that goes
+ * unanswered because that time ran out rejects with UpdateTimeExpired. Any other failure is
+ * rethrown as it is.
+ */
+async function readBeforeDeadline(readUrl: string, authToken: string, deadline: number): Promise<any> {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+        throw new UpdateTimeExpired();
+    }
+    try {
+        return await beforeDeadline(axios.get(readUrl, {
+            headers: { "Authorization": `Bearer ${authToken}` },
+            timeout: remaining,
+        }), deadline);
+    } catch (err) {
+        const code = (err as any)?.code;
+        const timedOut = code === 'ECONNABORTED' || code === 'ETIMEDOUT' || Date.now() >= deadline;
+        if (!(err instanceof UpdateTimeExpired) && !hasResponse(err) && timedOut) {
+            throw new UpdateTimeExpired();
+        }
+        throw err;
+    }
 }
 
 /** True when a failed request carries an HTTP response, so its outcome is known. */

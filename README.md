@@ -158,7 +158,7 @@ It reads the object, runs your function on it, and saves only if the object has 
 
 - **The function may run more than once.** It must work only from the object it is given and do nothing else: no other saves, no outside calls, and no values kept from an earlier run. Read what you were given from the saved object that `updateObject` returns.
 - **Throw to stop.** If the function throws, the update stops and nothing is saved.
-- **Settings.** `maxAttempts` (default 5) is how many times the read, change and save may run. `timeoutMs` (default 10000) is the time allowed for the whole call. The options of `saveObject` are accepted too.
+- **Settings.** `maxAttempts` (default 5) is how many times the read, change and save may run. `timeoutMs` (default 10000) is the time allowed for the whole call: getting the token, the read, your function, the save and the pauses between attempts. A function still running when the time runs out is not waited for, and its result is not saved. The options of `saveObject` are accepted too.
 - **`UpdateConflictError`** means the object changed on every attempt, or the time ran out. Nothing was saved, so it is safe to try again or to tell the user the record is busy.
 - **`UpdateOutcomeUnknownError`** means the save got no answer, for example because the connection dropped. The object may or may not have been saved, so `updateObject` does not try again.
 - Any other refusal from the service, such as a validation error, is thrown as `saveObject` throws it.

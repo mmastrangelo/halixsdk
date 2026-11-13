@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import axios from 'axios';
-import { lastValueFrom } from 'rxjs';
+import { defer, lastValueFrom, NEVER, Observable, of } from 'rxjs';
 import {
     initialize,
     updateObject,
@@ -37,12 +37,8 @@ function changed() {
     return { response: { status: 400, data: { errorCode: 'ModifiedSinceLastOpenedError' } } };
 }
 
-beforeEach(() => {
-    vi.clearAllMocks();
-    mockedAxios.get.mockReset();
-    mockedAxios.post.mockReset();
-    // No wait between attempts.
-    vi.spyOn(Math, 'random').mockReturnValue(0);
+/** Initializes the SDK with the given token source. */
+function start(auth: { authToken?: string; authTokenRetriever?: () => Observable<string> }) {
     initialize({
         sandboxKey: 'sb',
         serviceAddress: 'https://svc',
@@ -60,8 +56,17 @@ beforeEach(() => {
             },
         },
         params: {},
-        authToken: 'TOKEN',
+        ...auth,
     } as any);
+}
+
+beforeEach(() => {
+    vi.clearAllMocks();
+    mockedAxios.get.mockReset();
+    mockedAxios.post.mockReset();
+    // No wait between attempts.
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    start({ authToken: 'TOKEN' });
 });
 
 afterEach(() => {
@@ -146,6 +151,64 @@ describe('updateObject / updateObjectAsObservable', () => {
         expect(mockedAxios.get.mock.calls[0][1].timeout).toBe(1000);
         expect(mockedAxios.get.mock.calls[1][1].timeout).toBe(400);
         expect(mockedAxios.post.mock.calls[1][2].timeout).toBe(400);
+    });
+
+    it('stops with UpdateConflictError when getting the token outlasts the time allowed', async () => {
+        start({ authTokenRetriever: () => NEVER });
+
+        const failure = await updateObject('raffle', 'r1', (raffle: any) => raffle, { timeoutMs: 20 }).catch(e => e);
+
+        expect(failure).toBeInstanceOf(UpdateConflictError);
+        expect(failure.attempts).toBe(1);
+        expect(mockedAxios.get).not.toHaveBeenCalled();
+        expect(mockedAxios.post).not.toHaveBeenCalled();
+    });
+
+    it('limits the read to the time left after getting the token', async () => {
+        let now = 1000;
+        vi.spyOn(Date, 'now').mockImplementation(() => now);
+        start({
+            authTokenRetriever: () => defer(() => {
+                now += 300;
+                return of('TOKEN');
+            }),
+        });
+        mockedAxios.get.mockResolvedValueOnce(read(5, '1'));
+        mockedAxios.post.mockResolvedValueOnce({ data: {} });
+
+        await updateObject('raffle', 'r1', (raffle: any) => raffle, { timeoutMs: 1000 });
+
+        expect(mockedAxios.get.mock.calls[0][1].timeout).toBe(700);
+    });
+
+    it('stops with UpdateConflictError when the read times out, and saves nothing', async () => {
+        const timedOut = Object.assign(new Error('timeout of 20ms exceeded'), { code: 'ECONNABORTED' });
+        mockedAxios.get.mockRejectedValueOnce(timedOut);
+
+        const failure = await updateObject('raffle', 'r1', (raffle: any) => raffle, { timeoutMs: 20 }).catch(e => e);
+
+        expect(failure).toBeInstanceOf(UpdateConflictError);
+        expect(failure.attempts).toBe(1);
+        expect(mockedAxios.post).not.toHaveBeenCalled();
+    });
+
+    it('rethrows a read the service refused', async () => {
+        const refused = { response: { status: 404 } };
+        mockedAxios.get.mockRejectedValueOnce(refused);
+
+        await expect(updateObject('raffle', 'r1', (raffle: any) => raffle)).rejects.toBe(refused);
+
+        expect(mockedAxios.post).not.toHaveBeenCalled();
+    });
+
+    it('stops with UpdateConflictError when the change outlasts the time allowed, and saves nothing', async () => {
+        mockedAxios.get.mockResolvedValueOnce(read(5, '1'));
+
+        const failure = await updateObject('raffle', 'r1', () => new Promise<void>(() => {}), { timeoutMs: 20 }).catch(e => e);
+
+        expect(failure).toBeInstanceOf(UpdateConflictError);
+        expect(failure.attempts).toBe(1);
+        expect(mockedAxios.post).not.toHaveBeenCalled();
     });
 
     it('saves nothing when the change throws', async () => {
