@@ -319,6 +319,20 @@ export {
 } from './commerce.js';
 
 // ================================================================================
+// PRICING ACTION TYPES
+// ================================================================================
+
+export {
+    type PricingActionParams,
+    type PricingCartLine,
+    type PurchaseObject,
+    type LinePrice,
+    type PricingActionValue,
+    type PricingActionEvent,
+    type PricingActionResponse
+} from './pricing-action.js';
+
+// ================================================================================
 // INVOICE FUNCTIONS
 // ================================================================================
 

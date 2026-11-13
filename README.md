@@ -217,6 +217,39 @@ Notes:
 - A failed request throws `CommerceError`. When the cart rejects the object (not payable, disabled, outside its open and close dates), `errorCode` is `ShoppingCartValidationError` and the message is the server's reason.
 - Elements that only need a button can use the `halix-add-to-cart` platform element instead, configured with `AddToCartConfig` from `@halix/platform-elements-sdk`.
 
+### Pricing Actions
+
+The platform prices cart lines by calling a pricing Action: the one a purchasable object names (its item action), and the solution's shared cart pricing Action. Both receive cart lines in `event.actionSubject` and return a price entry per line. The SDK types the contract so a misspelled field fails to compile.
+
+```ts
+import * as hx from '@halix/action-sdk';
+import type { LinePrice, PricingActionEvent, PricingActionResponse } from '@halix/action-sdk';
+
+export const handler = async (event: PricingActionEvent): Promise<PricingActionResponse> => {
+  hx.initialize(event);
+  const prices: Record<string, LinePrice> = {};
+  for (const line of event.actionSubject) {
+    const count = Number(line.cartItemFormData?.count ?? 0);
+    prices[line.objKey] = { basePrice: count * 5, calcPrice: count * 5, applySalesTax: false };
+  }
+  return { responseType: 'singleValueAction', value: { prices } };
+};
+```
+
+| Type | Description |
+|------|-------------|
+| `PricingActionEvent` | The handler's event: `actionSubject` is the cart lines, `params` is `PricingActionParams` |
+| `PricingActionParams` | `placingOrder` is `true` on the pricing pass that places the order and absent on every other pass |
+| `PricingCartLine` | A cart line with its `cartItemFormData` and the `actionData` an earlier pass returned |
+| `LinePrice` | One line's result: `basePrice`, `calcPrice`, `applySalesTax`, display lines, `saveOnPurchase`, `actionData` |
+| `PricingActionValue` | The response's `value`: `prices` by cart line key and an optional `validationError` |
+| `PurchaseObject` | A record in `saveOnPurchase`, saved when the order is placed and undone if the payment fails |
+
+Notes:
+- The Action is called on every pricing pass and never after the order. Keep it repeatable: reuse what `actionData` records and never create the same thing twice.
+- Checkout charges `basePrice` times the line's `itemQuantity` for an object of a payable data element. `calcPrice` is the line total the cart displays, so keep the two in step.
+- A non-empty `validationError` refuses the cart change or the order with that message.
+
 ---
 
 ## Payment Helpers
