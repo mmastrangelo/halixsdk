@@ -1,42 +1,50 @@
 import { describe, it, expect } from 'vitest';
+import * as hx from '../src/index';
 import type {
     LinePrice,
     PricingActionEvent,
     PricingActionResponse,
-    PricingActionValue,
+    SingleValueActionResponse,
 } from '../src/index';
 
-// The pricing Action types have no runtime code. These tests write a handler against them and run it, so
-// the example in the module documentation stays honest. The test runner does not type-check: the
-// `@ts-expect-error` lines hold only when this file is compiled with tsc.
+// The pricing Action types have no runtime code. This file writes the documented handler against them and
+// runs it. `npm run test:types` compiles this file, so the handler, its call to `initialize`, and the
+// `@ts-expect-error` lines below are type-checked; the test runner alone does not type-check.
 
-function event(overrides: Partial<PricingActionEvent>): PricingActionEvent {
-    return {
-        sandboxKey: 'sbx',
-        serviceAddress: 'https://example.invalid',
-        userContext: {} as PricingActionEvent['userContext'],
-        actionSubject: [],
-        params: {},
-        ...overrides,
-    };
-}
-
-function handler(incoming: PricingActionEvent): PricingActionResponse {
+const handler = async (event: PricingActionEvent) => {
+    hx.initialize(event);
     const prices: Record<string, LinePrice> = {};
-    for (const line of incoming.actionSubject) {
+    for (const line of event.actionSubject) {
         const count = Number(line.cartItemFormData?.count ?? 0);
         const held: number[] = line.actionData?.held ?? [];
         prices[line.objKey] = {
             basePrice: count * 5,
             calcPrice: count * 5 * line.itemQuantity,
             applySalesTax: false,
-            itemAdditionalInfo: [incoming.params.placingOrder ? 'final' : 'held'],
+            itemAdditionalInfo: [event.params.placingOrder ? 'final' : 'held'],
             actionData: { held },
             saveOnPurchase: held.map(number => ({ objType: 'SolutionObject', dataElementId: 'ticket', number })),
         };
     }
-    const value: PricingActionValue = { prices };
-    return { responseType: 'singleValueAction', value };
+    const response: PricingActionResponse = {
+        responseType: 'singleValueAction',
+        isError: false,
+        successMessage: '',
+        value: { prices },
+    };
+    return hx.prepareSuccessResponse(response);
+};
+
+function event(overrides: Partial<PricingActionEvent>): PricingActionEvent {
+    return {
+        sandboxKey: 'sbx',
+        serviceAddress: 'https://example.invalid',
+        authToken: 'token',
+        userContext: { userProxyKey: 'payer-1', orgProxyKey: 'org-proxy', orgKey: 'org' } as PricingActionEvent['userContext'],
+        actionSubject: [],
+        params: {},
+        ...overrides,
+    };
 }
 
 const line = {
@@ -53,23 +61,28 @@ const line = {
     actionData: { held: [101, 102] },
 };
 
-describe('pricing Action types', () => {
-    it('describe an ordinary pricing pass', () => {
-        const response = handler(event({ actionSubject: [line] }));
+async function price(incoming: PricingActionEvent) {
+    const response = await handler(incoming) as SingleValueActionResponse;
+    return (response as PricingActionResponse).value.prices;
+}
 
-        expect(response.value.prices['line-1']).toMatchObject({
+describe('pricing Action types', () => {
+    it('describe an ordinary pricing pass', async () => {
+        const prices = await price(event({ actionSubject: [line] }));
+
+        expect(prices['line-1']).toMatchObject({
             basePrice: 10,
             calcPrice: 10,
             itemAdditionalInfo: ['held'],
             actionData: { held: [101, 102] },
         });
-        expect(response.value.prices['line-1'].saveOnPurchase).toHaveLength(2);
+        expect(prices['line-1'].saveOnPurchase).toHaveLength(2);
     });
 
-    it('describe the pass that places the order', () => {
-        const response = handler(event({ actionSubject: [line], params: { placingOrder: true } }));
+    it('describe the pass that places the order', async () => {
+        const prices = await price(event({ actionSubject: [line], params: { placingOrder: true } }));
 
-        expect(response.value.prices['line-1'].itemAdditionalInfo).toEqual(['final']);
+        expect(prices['line-1'].itemAdditionalInfo).toEqual(['final']);
     });
 
     it('reject a misspelled order flag and a misspelled price field', () => {
@@ -79,7 +92,7 @@ describe('pricing Action types', () => {
         expect(incoming.params.placingorder).toBeUndefined();
 
         // @ts-expect-error the field is calcPrice
-        const price: LinePrice = { basePrice: 1, calculatedPrice: 1 };
-        expect(price.basePrice).toBe(1);
+        const entry: LinePrice = { basePrice: 1, calculatedPrice: 1 };
+        expect(entry.basePrice).toBe(1);
     });
 });

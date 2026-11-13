@@ -17,19 +17,22 @@
  * summary is built, and when the order is placed. It does not call the Action after the order.
  *
  * ```ts
- * export const handler = async (event: PricingActionEvent): Promise<PricingActionResponse> => {
+ * export const handler = async (event: PricingActionEvent) => {
  *   hx.initialize(event);
  *   const prices: Record<string, LinePrice> = {};
  *   for (const line of event.actionSubject) {
  *     const count = Number(line.cartItemFormData?.count ?? 0);
  *     prices[line.objKey] = { basePrice: count * 5, calcPrice: count * 5, applySalesTax: false };
  *   }
- *   return { responseType: 'singleValueAction', value: { prices } };
+ *   const response: PricingActionResponse = {
+ *     responseType: 'singleValueAction', isError: false, successMessage: '', value: { prices },
+ *   };
+ *   return hx.prepareSuccessResponse(response);
  * };
  * ```
  */
 
-import type { IncomingEventBody } from './sdk-general';
+import type { IncomingEventBody, initialize, SingleValueActionResponse } from './sdk-general';
 import type { ShoppingCartItem } from './commerce';
 
 /**
@@ -111,19 +114,19 @@ export interface PricingActionValue {
 }
 
 /**
- * PricingActionEvent is the event a pricing Action's handler receives.
+ * PricingActionEvent is the event a pricing Action's handler receives. It is the type `initialize` accepts with
+ * the pricing inputs added, so the handler passes it straight to `initialize`. The inputs arrive on the event
+ * itself, without a `body` wrapper. `userContext.userProxyKey` is the cart payer's key; a guest cart has none.
  */
-export interface PricingActionEvent extends IncomingEventBody {
+export type PricingActionEvent = Parameters<typeof initialize>[0] & Omit<IncomingEventBody, 'actionSubject' | 'params'> & {
+    /** The cart lines to price. Return a price entry for every line supplied. */
     actionSubject: PricingCartLine[];
     params: PricingActionParams;
-}
+};
 
 /**
- * PricingActionResponse is the response a pricing Action returns.
+ * PricingActionResponse is the response a pricing Action passes to `prepareSuccessResponse`.
  */
-export interface PricingActionResponse {
-    responseType: 'singleValueAction';
+export interface PricingActionResponse extends SingleValueActionResponse {
     value: PricingActionValue;
-    successMessage?: string;
-    isError?: boolean;
 }

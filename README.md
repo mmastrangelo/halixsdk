@@ -225,24 +225,28 @@ The platform prices cart lines by calling a pricing Action: the one a purchasabl
 import * as hx from '@halix/action-sdk';
 import type { LinePrice, PricingActionEvent, PricingActionResponse } from '@halix/action-sdk';
 
-export const handler = async (event: PricingActionEvent): Promise<PricingActionResponse> => {
+export const handler = async (event: PricingActionEvent) => {
   hx.initialize(event);
   const prices: Record<string, LinePrice> = {};
   for (const line of event.actionSubject) {
     const count = Number(line.cartItemFormData?.count ?? 0);
     prices[line.objKey] = { basePrice: count * 5, calcPrice: count * 5, applySalesTax: false };
   }
-  return { responseType: 'singleValueAction', value: { prices } };
+  const response: PricingActionResponse = {
+    responseType: 'singleValueAction', isError: false, successMessage: '', value: { prices },
+  };
+  return hx.prepareSuccessResponse(response);
 };
 ```
 
 | Type | Description |
 |------|-------------|
-| `PricingActionEvent` | The handler's event: `actionSubject` is the cart lines, `params` is `PricingActionParams` |
+| `PricingActionEvent` | The handler's event, accepted by `initialize`: `actionSubject` is the cart lines, `params` is `PricingActionParams` |
 | `PricingActionParams` | `placingOrder` is `true` on the pricing pass that places the order and absent on every other pass |
 | `PricingCartLine` | A cart line with its `cartItemFormData` and the `actionData` an earlier pass returned |
 | `LinePrice` | One line's result: `basePrice`, `calcPrice`, `applySalesTax`, display lines, `saveOnPurchase`, `actionData` |
 | `PricingActionValue` | The response's `value`: `prices` by cart line key and an optional `validationError` |
+| `PricingActionResponse` | The single-value response with that `value`, passed to `prepareSuccessResponse` |
 | `PurchaseObject` | A record in `saveOnPurchase`, saved when the order is placed and undone if the payment fails |
 
 Notes:
