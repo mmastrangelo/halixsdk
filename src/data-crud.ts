@@ -26,7 +26,22 @@
  * - **Get single object by key** → `getObject`
  * - **Fetch a known parent's child records** → `getRelatedObjects`
  * - **Create/update single object** → `saveObject`
+ * - **Change a record from its current values when others may change it too** → `updateObject`
  * - **Delete single object** → `deleteObject`
+ *
+ * ## Save or Update
+ * - `saveObject` writes the record you hold. If someone else saved the record after you read it,
+ *   your save replaces theirs: the last writer wins. Use it to create records and for edits where
+ *   that is acceptable.
+ * - `updateObject` is for a change that depends on the record's current values, such as taking the
+ *   next number from a counter or adding to a balance, when two callers may make it at the same
+ *   time. It reads the record, runs your function on it and saves only if the record has not
+ *   changed since that read. If it has, it reads again and runs your function again.
+ * - The function you pass may run more than once. It must work only from the record it is given
+ *   and do nothing else: no other saves, no outside calls, and no values kept from an earlier run.
+ * - Throw from the function to stop without saving, for example when a limit is reached.
+ * - `updateObject` throws `UpdateConflictError` when the record kept changing and nothing was
+ *   saved, and `UpdateOutcomeUnknownError` when the save got no answer and may have been written.
  *
  * ## Record Retrieval Decision
  * - Use `getAggregateData` from the data-aggregate module for counts, sums, rankings, and grouped metrics.
@@ -52,6 +67,7 @@
  * | `getRelatedObjects` | Children of a known parent record |
  * | `saveObject` | Create or update one object |
  * | `saveRelatedObject` | Create or update one object and establish relationship to a parent |
+ * | `updateObject` | Change one existing object from its current values, safely against other writers |
  * | `deleteObject` | Delete one object without parent scope |
  * | `deleteRelatedObject` | Delete one related object |
  *
@@ -96,6 +112,17 @@
  * );
  *
  * @example
+ * // Take the next three numbers from a counter kept on a record
+ * const saved = await hx.updateObject('raffle', raffleKey, (raffle) => {
+ *   if (raffle.nextTicketNumber + 3 > raffle.lastTicketNumber + 1) {
+ *     throw new Error('Sold out');
+ *   }
+ *   raffle.nextTicketNumber += 3;
+ *   return raffle;
+ * });
+ * const firstNumber = saved.nextTicketNumber - 3;
+ *
+ * @example
  * // Delete a recipe
  * await hx.deleteObject('recipe', recipeKey);
  */
@@ -120,6 +147,55 @@ export interface SaveOptions {
 }
 
 type SaveBody = string | object;
+
+/**
+ * UpdateOptions is an interface for specifying updateObject options.
+ */
+export interface UpdateOptions extends SaveOptions {
+    /** How many times the read, change and save may run before giving up. Default 5. */
+    maxAttempts?: number;
+    /** Time allowed for the whole call in milliseconds, waits included. Default 10000. */
+    timeoutMs?: number;
+}
+
+/**
+ * UpdateConflictError is thrown by updateObject when the record changed on every attempt, or the
+ * time allowed ran out. This call saved nothing.
+ */
+export class UpdateConflictError extends Error {
+    /** How many times the read, change and save were tried. */
+    readonly attempts: number;
+
+    constructor(message: string, attempts: number) {
+        super(message);
+        this.name = 'UpdateConflictError';
+        this.attempts = attempts;
+    }
+}
+
+/**
+ * UpdateOutcomeUnknownError is thrown by updateObject when the save got no answer, for example
+ * because the connection dropped. The record may or may not have been saved, so the update is not
+ * tried again.
+ */
+export class UpdateOutcomeUnknownError extends Error {
+    constructor(message: string, cause?: unknown) {
+        super(message);
+        this.name = 'UpdateOutcomeUnknownError';
+        if (cause !== undefined) {
+            Object.defineProperty(this, 'cause', {
+                configurable: true,
+                value: cause,
+            });
+        }
+    }
+}
+
+const RECORD_VERSION_HEADER = 'X-Halix-Record-Version';
+const RECORD_CHANGED_ERROR_CODE = 'ModifiedSinceLastOpenedError';
+const DEFAULT_UPDATE_ATTEMPTS = 5;
+const DEFAULT_UPDATE_TIMEOUT_MS = 10000;
+const UPDATE_RETRY_STEP_MS = 50;
 
 // ================================================================================
 // DATA RETRIEVAL FUNCTIONS
@@ -366,6 +442,128 @@ export function saveRelatedObjectAsObservable(parentElementId: string, parentKey
 }
 
 // ================================================================================
+// DATA UPDATE FUNCTIONS
+// ================================================================================
+
+/**
+ * Changes an existing object from its current values, safely against other writers. It reads the
+ * object, passes it to `change`, and saves the result only if the object has not changed since
+ * that read. If it has, it reads again and runs `change` again.
+ *
+ * Use it instead of saveObject when the new values depend on the stored ones and two callers may
+ * make the change at the same time, such as taking the next number from a counter. saveObject
+ * writes what the caller holds, and the last writer wins.
+ *
+ * `change` may run more than once. It must work only from the object it is given and do nothing
+ * else: no other saves, no outside calls, and no values kept from an earlier run. It may change the
+ * object in place or return a new one. If it throws, the update stops and nothing is saved.
+ *
+ * `timeoutMs` covers every wait in the call: getting the token, the read, `change`, the save and
+ * the pauses between attempts. A `change` still running when the time runs out is not waited for,
+ * and its result is not saved.
+ *
+ * @param dataElementId - Data element ID of the object
+ * @param key - Key of the existing object
+ * @param change - Function that applies the change to the object's current values
+ * @param opts - Optional settings: maxAttempts (default 5), timeoutMs for the whole call
+ * (default 10000), and the saveObject options
+ * @returns Promise<T> - the saved object
+ * @throws UpdateConflictError when the object changed on every attempt or the time ran out; nothing was saved
+ * @throws UpdateOutcomeUnknownError when the save got no answer and may have been written
+ */
+export async function updateObject<T = any>(dataElementId: string, key: string, change: (current: T) => T | void | Promise<T | void>, opts?: UpdateOptions): Promise<T> {
+    if (!getAuthToken) {
+        const errorMessage = 'SDK not initialized.';
+        console.error(errorMessage);
+        throw new Error(errorMessage);
+    }
+
+    const maxAttempts = opts?.maxAttempts ?? DEFAULT_UPDATE_ATTEMPTS;
+    if (!Number.isInteger(maxAttempts) || maxAttempts < 1) {
+        throw new Error('maxAttempts must be a whole number of 1 or more.');
+    }
+    const timeoutMs = opts?.timeoutMs ?? DEFAULT_UPDATE_TIMEOUT_MS;
+    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+        throw new Error('timeoutMs must be greater than 0.');
+    }
+
+    const deadline = Date.now() + timeoutMs;
+    const readUrl = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${dataElementId}/${key}`;
+    const saveUrl = `${serviceAddress}/schema/sandboxes/${sandboxKey}/${dataElementId}?${buildSaveQueryString(opts, true)}`;
+
+    let attempts = 0;
+    while (attempts < maxAttempts) {
+        if (deadline - Date.now() <= 0) {
+            break;
+        }
+        attempts++;
+
+        // Nothing is saved before the POST below, so running out of time anywhere before it ends
+        // the update with UpdateConflictError.
+        let authToken: string;
+        let version: string;
+        let changed: T;
+        try {
+            authToken = await beforeDeadline(lastValueFrom(getAuthToken()), deadline);
+
+            const read = await readBeforeDeadline(readUrl, authToken, deadline);
+            const readVersion = readRecordVersion(read.headers);
+            if (!readVersion) {
+                throw new Error('The service returned no record version, so updateObject cannot protect this change.');
+            }
+            version = readVersion;
+
+            const current = read.data as T;
+            changed = (await beforeDeadline(Promise.resolve(change(current)), deadline)) ?? current;
+        } catch (err) {
+            if (err instanceof UpdateTimeExpired) {
+                break;
+            }
+            throw err;
+        }
+
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) {
+            break;
+        }
+
+        try {
+            const saved = await axios.post(saveUrl, { ...(changed as object), objKey: key }, {
+                headers: {
+                    "Authorization": `Bearer ${authToken}`,
+                    [RECORD_VERSION_HEADER]: version,
+                },
+                timeout: remaining,
+            });
+            return saved.data as T;
+        } catch (err) {
+            if (!hasResponse(err)) {
+                throw new UpdateOutcomeUnknownError('The save got no answer. The object may or may not have been saved.', err);
+            }
+            if (!isRecordChangedError(err)) {
+                throw err;
+            }
+        }
+
+        // Another writer saved first. Wait a short random time so two callers that collided
+        // do not collide again in step.
+        const wait = Math.min(Math.random() * UPDATE_RETRY_STEP_MS * attempts, deadline - Date.now());
+        if (attempts < maxAttempts && wait > 0) {
+            await new Promise(resolve => setTimeout(resolve, wait));
+        }
+    }
+
+    throw new UpdateConflictError(`The object was changed by another writer on each of ${attempts} attempts, or the time allowed ran out. Nothing was saved.`, attempts);
+}
+
+/**
+ * Observable version of updateObject. See updateObject for details.
+ */
+export function updateObjectAsObservable<T = any>(dataElementId: string, key: string, change: (current: T) => T | void | Promise<T | void>, opts?: UpdateOptions): Observable<T> {
+    return from(updateObject<T>(dataElementId, key, change, opts));
+}
+
+// ================================================================================
 // DATA DELETE FUNCTIONS
 // ================================================================================
 
@@ -498,6 +696,81 @@ function buildAccessibleObjectsParams(filter?: FilterExpression, fetchedRelation
     }
 
     return params;
+}
+
+/** Reads the record version header from an axios response's headers, whatever their casing. */
+function readRecordVersion(headers: any): string | undefined {
+    if (!headers) {
+        return undefined;
+    }
+    let value: unknown;
+    if (typeof headers.get === 'function') {
+        value = headers.get(RECORD_VERSION_HEADER);
+    } else {
+        const name = Object.keys(headers).find(h => h.toLowerCase() === RECORD_VERSION_HEADER.toLowerCase());
+        value = name ? headers[name] : undefined;
+    }
+    if (value === undefined || value === null || value === '') {
+        return undefined;
+    }
+    return String(value);
+}
+
+/** Thrown inside updateObject when its time allowed runs out before anything is saved. */
+class UpdateTimeExpired extends Error {
+    constructor() {
+        super('The time allowed for the update ran out.');
+        this.name = 'UpdateTimeExpired';
+    }
+}
+
+/**
+ * Waits for `work` until `deadline` (a Date.now() value) and rejects with UpdateTimeExpired when
+ * the deadline comes first. The work is not cancelled; its late result is ignored.
+ */
+function beforeDeadline<T>(work: Promise<T>, deadline: number): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new UpdateTimeExpired()), Math.max(0, deadline - Date.now()));
+        work.then(
+            value => { clearTimeout(timer); resolve(value); },
+            err => { clearTimeout(timer); reject(err); },
+        );
+    });
+}
+
+/**
+ * Reads the record for updateObject within the time left before `deadline`. A read that goes
+ * unanswered because that time ran out rejects with UpdateTimeExpired. Any other failure is
+ * rethrown as it is.
+ */
+async function readBeforeDeadline(readUrl: string, authToken: string, deadline: number): Promise<any> {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+        throw new UpdateTimeExpired();
+    }
+    try {
+        return await beforeDeadline(axios.get(readUrl, {
+            headers: { "Authorization": `Bearer ${authToken}` },
+            timeout: remaining,
+        }), deadline);
+    } catch (err) {
+        const code = (err as any)?.code;
+        const timedOut = code === 'ECONNABORTED' || code === 'ETIMEDOUT' || Date.now() >= deadline;
+        if (!(err instanceof UpdateTimeExpired) && !hasResponse(err) && timedOut) {
+            throw new UpdateTimeExpired();
+        }
+        throw err;
+    }
+}
+
+/** True when a failed request carries an HTTP response, so its outcome is known. */
+function hasResponse(err: unknown): boolean {
+    return !!err && typeof err === 'object' && !!(err as any).response;
+}
+
+/** True when the service refused a save because the record changed since it was read. */
+function isRecordChangedError(err: unknown): boolean {
+    return (err as any)?.response?.data?.errorCode === RECORD_CHANGED_ERROR_CODE;
 }
 
 function buildSaveQueryString(opts?: SaveOptions, includeApplyContext?: boolean): string {
