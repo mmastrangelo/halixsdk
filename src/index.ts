@@ -80,7 +80,12 @@ export {
 export {
     // Interfaces
     type SaveOptions,
-    
+    type UpdateOptions,
+
+    // Errors
+    UpdateConflictError,
+    UpdateOutcomeUnknownError,
+
     // Data Retrieval
     getObject,
     getObjectAsObservable,
@@ -96,7 +101,11 @@ export {
     saveObjectAsObservable,
     saveRelatedObject,
     saveRelatedObjectAsObservable,
-    
+
+    // Data Update
+    updateObject,
+    updateObjectAsObservable,
+
     // Data Delete
     deleteObject,
     deleteObjectAsObservable,

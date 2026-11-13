@@ -90,6 +90,7 @@ This action pattern is typical for use in Halix’s Lambda-style runtime environ
 | `getObject(...)` / `getObjectAsObservable(...)` | Retrieve a single object |
 | `getRelatedObjects(...)` / `getRelatedObjectsAsObservable(...)` | Retrieve related objects |
 | `saveRelatedObject(...)` / `saveRelatedObjectAsObservable(...)` | Save objects and relationships |
+| `updateObject(...)` / `updateObjectAsObservable(...)` | Change an existing object from its current values, safely against other writers |
 | `deleteRelatedObject(...)` / `deleteRelatedObjectAsObservable(...)` | Delete a single related object |
 | `deleteRelatedObjects(...)` / `deleteRelatedObjectsAsObservable(...)` | Delete multiple related objects (uses `keys` query param) |
 | `addToCart(...)` / `addToCartAsObservable(...)` | Add an object of a payable element to the shopper's cart |
@@ -132,6 +133,38 @@ void hx.invokeAction('refresh-dashboard', {
 ```
 
 `ActionInvocationError` covers HTTP failures, Lambda function failures, `responseType: "error"`, and any response with `isError: true`.
+
+---
+
+## Save or Update
+
+`saveObject` writes the object you hold. If someone else saved the object after you read it, your save replaces theirs: the last writer wins. Use it to create objects and for edits where that is acceptable.
+
+`updateObject` is for a change that depends on the object's current values, when two callers may make it at the same time. Taking the next number from a counter is the usual case: with `saveObject`, two callers can both read 5 and both hand out 5.
+
+```ts
+const saved = await hx.updateObject('raffle', raffleKey, (raffle) => {
+  if (raffle.nextTicketNumber + count > raffle.lastTicketNumber + 1) {
+    throw new Error('Sold out');
+  }
+  raffle.nextTicketNumber += count;
+  return raffle;
+});
+
+const firstNumber = saved.nextTicketNumber - count;
+```
+
+It reads the object, runs your function on it, and saves only if the object has not changed since that read. If it has, it reads again and runs your function again.
+
+- **The function may run more than once.** It must work only from the object it is given and do nothing else: no other saves, no outside calls, and no values kept from an earlier run. Read what you were given from the saved object that `updateObject` returns.
+- **Throw to stop.** If the function throws, the update stops and nothing is saved.
+- **Settings.** `maxAttempts` (default 5) is how many times the read, change and save may run. `timeoutMs` (default 10000) is the time allowed for the whole call. The options of `saveObject` are accepted too.
+- **`UpdateConflictError`** means the object changed on every attempt, or the time ran out. Nothing was saved, so it is safe to try again or to tell the user the record is busy.
+- **`UpdateOutcomeUnknownError`** means the save got no answer, for example because the connection dropped. The object may or may not have been saved, so `updateObject` does not try again.
+- Any other refusal from the service, such as a validation error, is thrown as `saveObject` throws it.
+- An element's before-save actions run before the save is checked, so they also run for an attempt that loses to another writer.
+
+`updateObject` makes one object safe to change. It does not make a value unique across separate objects.
 
 ---
 
